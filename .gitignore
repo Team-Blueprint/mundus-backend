@@ -24,3 +24,4 @@ migrations/*.pyo
 db.sqlite3
 realestate.db
 .vercel
+mundus.db

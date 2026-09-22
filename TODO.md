@@ -7,8 +7,12 @@
 - [ ] Object storage bucket (S3-compatible) for photos — never store binaries in Postgres
 - [ ] `/health` endpoint returning 200 (do this first — unblocks WatchUp integration)
 - [ ] Media storage (Cloudinary) for photos — never store binaries in Postgres
+- [x] PostgreSQL setup + SQLAlchemy (or SQLModel) + Alembic migrations
+- [x] Object storage bucket (S3-compatible) for photos — never store binaries in Postgres
+- [x] Media storage (Cloudinary) for photos — never store binaries in Postgres
 - [x] `/health` endpoint returning 200 (do this first — unblocks WatchUp integration)
 - [ ] Global exception handler + structured logging (site ID, user ID, timestamp on every error)
+- [x] Global exception handler + structured logging (site ID, user ID, timestamp on every error)
 
 ## Phase 1: Auth & Roles
 - [ ] User model with `role` enum: `supervisor`, `agency`, `reporter`
@@ -16,6 +20,11 @@
 - [ ] `/auth/login`, `/auth/me` endpoints
 - [ ] Role-based dependency guards (`Depends(require_role("supervisor"))` etc.)
 - [ ] Seed script for mock contractor/supervisor/agency accounts (demo data)
+- [x] User model with `role` enum: `supervisor`, `agency`, `reporter`
+- [x] JWT auth (hand-rolled with `pyjwt` + `bcrypt`)
+- [x] `/auth/login`, `/auth/me` endpoints
+- [x] Role-based dependency guards (`Depends(require_role("supervisor"))` etc.)
+- [x] Seed script for mock contractor/supervisor/agency accounts (demo data)
 
 ## Phase 2: Dump Point Registry (admin)
 - [ ] `DumpPoint` model: name, lat, lng, assigned_contractor_id, assigned_supervisor_id, interval_days, last_clearance_timestamp
