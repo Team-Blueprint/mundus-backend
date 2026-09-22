@@ -1,0 +1,26 @@
+venv/
+
+# pycache files
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*$py.class
+
+# router caches
+routers/__pycache__/
+routers/*.pyc
+routers/*.pyo
+
+# migration caches
+migrations/__pycache__/
+migrations/*.pyc
+migrations/*.pyo
+
+# environment variables
+.env
+.env.local
+
+db.sqlite3
+realestate.db
+.vercel

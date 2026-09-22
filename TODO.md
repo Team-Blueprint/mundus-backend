@@ -2,9 +2,12 @@
 
 ## Phase 0: Foundation
 - [ ] Project scaffold (FastAPI app, routers, `pydantic-settings` config, `.env`)
+- [x] Project scaffold (FastAPI app, routers, `pydantic-settings` config, `.env`)
 - [ ] PostgreSQL setup + SQLAlchemy (or SQLModel) + Alembic migrations
 - [ ] Object storage bucket (S3-compatible) for photos — never store binaries in Postgres
 - [ ] `/health` endpoint returning 200 (do this first — unblocks WatchUp integration)
+- [ ] Media storage (Cloudinary) for photos — never store binaries in Postgres
+- [x] `/health` endpoint returning 200 (do this first — unblocks WatchUp integration)
 - [ ] Global exception handler + structured logging (site ID, user ID, timestamp on every error)
 
 ## Phase 1: Auth & Roles
