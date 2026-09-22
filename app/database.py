@@ -1,6 +1,10 @@
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.exc import OperationalError
 from app.config import settings
+
+logger = logging.getLogger("mundus.database")
 
 db_url = settings.DATABASE_URL.strip()
 

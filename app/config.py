@@ -6,7 +6,6 @@ import dotenv
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Mundus Backend"
-    API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
