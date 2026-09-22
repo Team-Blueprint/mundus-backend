@@ -1,0 +1,28 @@
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.auth.models import User
+from app.auth.schemas import LoginRequest, Token, UserCreate, UserResponse
+from app.auth.deps import get_current_user
+import app.auth.service as auth_service
+
+router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+@router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
+def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+    """Authenticate user with email and password and return JWT token."""
+    return auth_service.login_service(db, login_data)
+
+
+@router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
+def get_me(current_user: User = Depends(get_current_user)):
+    """Get current authenticated user details."""
+    return current_user
+
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user (admin / initial setup)."""
+    return auth_service.create_user(db, user_in)
+
