@@ -1,0 +1,150 @@
+Mundus — Technical Documentation
+For Frontend & Backend Engineers
+1. System Overview
+Mundus is a verification platform for waste evacuation. It has three user types and one
+core data object (the dump point) that everything else attaches to:
+• Contractor supervisor (primary app user): logs before/after clearance photos at
+assigned dump points.
+• Agency (dashboard-only): views site status, never touches the field-facing app.
+• Reporter (optional, per-site): a single designated person (shop owner, keke stage
+operator) who can flag a site as full ahead of schedule.
+There are no drivers as direct app users — see Section 3 for why.
+2. Architecture
+Suggested stack (optimized for an 18-day build, deployed on Pxxl):
+• Frontend: React or Next.js (both supported natively on Pxxl)
+• Backend: Node.js (Express or Fastify) — also natively supported on Pxxl, simplifies
+having one deployment platform for both sides
+• Database: PostgreSQL (or a managed Postgres instance if Pxxl doesn't provide one
+— confirm what's available) or Firebase/Supabase if you want built-in auth and
+storage to save build time
+• File/photo storage: Object storage (S3-compatible, or Supabase Storage/Firebase
+Storage) — do not store photos directly in the database
+• Auth: Role-based — three roles (supervisor, agency-viewer, reporter), simplest
+implemented via Supabase Auth or Firebase Auth with custom claims per role
+Deployment (Pxxl):
+• Frontend and backend both deploy via Pxxl's Git integration — push to a connected
+GitHub repo, Pxxl handles CI/CD automatically.
+• Use Pxxl's CLI (`pxxl auth`, then project-specific deploy commands) for manual
+redeploys during the build sprint when you need faster iteration than git-push
+triggers.
+• Keep frontend and backend as separate Pxxl projects/services rather than one
+monolith, so you can redeploy either independently without waiting on the other's
+build.
+• Use Pxxl's rollback feature as your safety net during the hackathon — if a late-stage
+deploy breaks the demo, roll back rather than debug live.
+Observability (WatchUp):
+• Confirm with the organizers exactly what WatchUp tracks (uptime, error logging,
+request tracing, or all three) before building your integration — treat the below as the
+standard set to wire up regardless of which specific tool:
+- Error tracking: wrap your backend API handlers so failed check-ins, failed photo
+uploads, and failed geofence calculations are logged with enough context (site ID, user
+ID, timestamp) to debug without needing to reproduce live during the demo.
+- Uptime/health check endpoint: expose a simple `/health` route returning 200 OK,
+since most observability tools poll this to confirm the service is alive — build this
+early, it's a five-minute task that unblocks the whole integration.
+- Basic request logging: log every check-in submission (success or failure) — this
+doubles as an audit trail for your own demo prep, letting you show "here's every
+check-in that happened during the build period" if asked.
+3. Must-Have Features (MVP — build these first)
+1 Dump point registry (admin-side). Create, list, and assign dump points to a
+contractor. Minimal fields: name, coordinates, assigned contractor ID, assigned
+supervisor ID.
+2 Supervisor check-in flow.
+- In-app camera capture only — no gallery/file upload. This is a hard requirement, not a
+nice-to-have: it's your primary anti-fraud mechanism (see Section 5).
+- Auto-capture GPS coordinates and timestamp at the moment the photo is taken —
+read directly from device sensors, never a manual text field.
+- Two capture types per visit: "before" and "after," tied to the same site + timestamp
+pair.
+1 Geofence validation. On submission, calculate the distance between the photo's
+GPS coordinates and the registered dump point's coordinates (haversine formula — a
+straightforward, well-documented calculation, no external library needed). If outside
+a configurable radius (start with ~100m, adjust after testing), flag the submission as
+"location mismatch" rather than silently accepting or rejecting it outright.
+2 Agency dashboard — core view. A list of all registered dump points, each showing
+days-since-last-clearance, sorted descending (most overdue first). Red-flag anything
+past a configurable threshold (start with 10 days).
+3 Fixed-interval scheduling logic. No cron job needed — compute "is this site
+overdue" at read-time by comparing `now() - last_clearance_timestamp` against the
+interval (e.g., 7 days) every time the dashboard loads. Simpler to build and demo
+than a background job.
+4 Basic auth with role separation. Supervisors can only see and act on their assigned
+sites. Agency viewers see everything but can't submit check-ins. Keep this simple —
+even a hardcoded role field checked on each request is fine for a hackathon MVP.
+4. Nice-to-Have Features (build if time allows, after MVP is solid)
+1 Reporter flow. Single-tap "site full" report from a designated reporter, tied to one
+specific site. Feeds into the same overdue-ranking logic as an accelerant, not a
+replacement.
+2 Rate limiting on reporter submissions. Prevent the same site from being flagged
+more than once per fixed window (e.g., once per 12 hours) — simple to implement
+as a timestamp check before accepting a new report.
+3 Timestamp sanity check. Flag (don't necessarily block) a submission where the
+device timestamp seems inconsistent with server receipt time, as a secondary fraud
+signal alongside the geofence check.
+4 Before/after photo pairing view. A simple side-by-side view on the dashboard so
+the agency can visually confirm a site was actually cleared, not just that two photos
+were submitted.
+5 Site-level history log. A timeline per dump point showing every check-in over time,
+not just the current status — useful for a "look how consistent/inconsistent this
+contractor has been" demo moment.
+6 Push notifications. Real-time alert to a supervisor when a reporter flags their
+assigned site, rather than requiring them to check the dashboard manually. Genuinely
+buildable within the sprint, not a post-hackathon item — use Firebase Cloud
+Messaging or Supabase's built-in realtime subscriptions (whichever matches your
+auth/DB choice) rather than building push infrastructure from scratch. Budget a day
+or two, not more.
+7 Basic reused-photo detection. Hash each uploaded photo on submission (a standard
+hashing function, no image-processing library needed) and check it against existing
+hashes in the database. An exact match — the same file submitted for a different
+check-in, or reused across sites — gets flagged automatically. This is a small,
+well-scoped addition on top of the upload flow you're already building, not a
+separate system. Distinct from photo *tamper* detection (see Section 7) — this only
+catches identical files, not edited or visually similar ones.
+5. Anti-Fraud & Anti-Spam — Technical Notes
+• In-app camera only, no gallery upload is the single highest-leverage anti-fraud
+measure and the easiest to implement — this alone prevents submitting an old photo
+or a photo from a different location. On web, this means using `getUserMedia`
+directly rather than a file input; on mobile, using the platform camera API directly
+rather than an image picker.
+• GPS-at-capture, not manual entry — read `navigator.geolocation` (web) or the
+device's native location API (mobile) at the exact moment of capture, attach it to the
+upload payload automatically. There is nothing for the user to type or fake here by
+design.
+• Geofence check happens server-side, not client-side — never trust a
+client-reported "this photo is within range" flag; always recalculate distance on the
+backend against the registered coordinates.
+• Be upfront with your team (and in the demo) that GPS can still be spoofed by a
+genuinely determined bad actor (mock location apps, rooted devices). The system
+raises the cost of fraud and makes patterns detectable in aggregate — it does not
+claim to be cryptographically tamper-proof. Don't oversell this part.
+6. Explicitly Out of Scope for the Hackathon Build
+• Offline support / sync-when-connected. Real engineering value, but too
+time-costly for 18 days. Note it as a roadmap item.
+• SMS-based reporting for non-smartphone users. Needs paid API setup (Twilio,
+Africa's Talking) — not realistic alongside everything else. Name it as a future
+accessibility improvement if asked.
+• Real AKSEPWMA data or live contractor accounts. Everything is seeded demo
+data — real dump point names, mock contractor/supervisor accounts you create
+yourselves. Don't imply live government integration exists.
+• Payment/payroll integration. Always framed as a policy recommendation for the
+agency to adopt (see Edo State precedent), not something the software directly
+executes.
+7. Future Roadmap (post-hackathon, if this goes further)
+1 Offline-first capture with background sync for low-connectivity areas.
+2 SMS/USSD fallback reporting channel for non-smartphone reporters.
+3 Multi-agency support — the same platform serving multiple LGAs or states (Abuja's
+FCT has a documented, near-identical need).
+4 Public-facing transparency dashboard (read-only, aggregated) for residents or
+watchdog organizations — separate from the operational dashboard, and only after
+the core product is proven with the agency.
+5 Advanced photo-tamper detection beyond exact-duplicate hashing — perceptual
+similarity matching and basic forensic checks to catch subtly edited or near-duplicate
+images, not just identical reused files. Worth real engineering time once fraud
+patterns are actually observed in production, not before.
+8. Demo Data Checklist (for the live demo)
+• 5–6 real dump point names and coordinates (Nwaniba, IBB Way, etc.)
+• 2–3 mock contractor/supervisor accounts
+• At least 2 sites deliberately left "overdue" to demonstrate the flagging logic working
+live
+• One full before/after check-in cycle walked through live, not pre-seeded, so the
+judges see the actual flow
