@@ -3,6 +3,7 @@ from fastapi import status
 from app.auth.models import User, UserRole
 from app.auth.schemas import UserCreate, LoginRequest, Token, UserResponse
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, decode_access_token
 from app.core.exceptions import MundusException
 
 
@@ -12,6 +13,17 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 def get_user_by_id(db: Session, user_id: int) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
+
+
+def generate_tokens_for_user(user: User) -> Token:
+    access_token = create_access_token(subject=user.id, role=user.role.value)
+    refresh_token = create_refresh_token(subject=user.id, role=user.role.value)
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+    )
 
 
 def create_user(db: Session, user_in: UserCreate) -> User:
@@ -33,6 +45,11 @@ def create_user(db: Session, user_in: UserCreate) -> User:
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+def register_service(db: Session, user_in: UserCreate) -> Token:
+    user = create_user(db, user_in)
+    return generate_tokens_for_user(user)
 
 
 def authenticate_user(db: Session, login_data: LoginRequest) -> User:
@@ -63,4 +80,30 @@ def login_service(db: Session, login_data: LoginRequest) -> Token:
         token_type="bearer",
         user=UserResponse.model_validate(user),
     )
+    return generate_tokens_for_user(user)
 
+
+def refresh_token_service(db: Session, refresh_token: str) -> Token:
+    payload = decode_access_token(refresh_token)
+    if not payload or payload.get("type") != "refresh_token":
+        raise MundusException(
+            message="Invalid refresh token.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        user_id = int(payload["sub"])
+    except (ValueError, TypeError):
+        raise MundusException(
+            message="Invalid token subject.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    user = get_user_by_id(db, user_id)
+    if not user or not user.is_active:
+        raise MundusException(
+            message="User not found or inactive.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    return generate_tokens_for_user(user)

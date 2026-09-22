@@ -1,6 +1,6 @@
 from typing import Callable, Sequence
 from fastapi import Depends, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.models import User, UserRole
@@ -8,10 +8,12 @@ from app.auth.service import get_user_by_id
 from app.core.security import decode_access_token
 from app.core.exceptions import MundusException, PermissionDeniedException
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+http_bearer = HTTPBearer(scheme_name="HttpJwtAuth", auto_error=True)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+
+def get_current_user(auth: HTTPAuthorizationCredentials = Depends(http_bearer), db: Session = Depends(get_db),) -> User:
+    token = auth.credentials
     payload = decode_access_token(token)
     if not payload or not payload.get("sub"):
         raise MundusException(
@@ -48,4 +50,3 @@ def require_role(allowed_roles: Sequence[UserRole | str]) -> Callable:
         return current_user
 
     return role_checker
-

@@ -14,6 +14,7 @@ def test_login_success():
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
+    assert "refresh_token" in data
     assert data["token_type"] == "bearer"
     assert data["user"]["email"] == "supervisor@mundus.org"
     assert data["user"]["role"] == "supervisor"
@@ -26,6 +27,40 @@ def test_login_invalid_password():
     )
     assert response.status_code == 401
     assert "error" in response.json()
+
+
+def test_register_returns_tokens():
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "newuser@mundus.org",
+            "password": "Password123!",
+            "full_name": "New User",
+            "role": "supervisor"
+        }
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["user"]["email"] == "newuser@mundus.org"
+
+
+def test_refresh_token_success():
+    login_resp = client.post(
+        "/auth/login",
+        json={"email": "supervisor@mundus.org", "password": "Password123!"}
+    )
+    refresh_token = login_resp.json()["refresh_token"]
+
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
 
 
 def test_get_me_success():

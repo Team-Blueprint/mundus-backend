@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.models import User
 from app.auth.schemas import LoginRequest, Token, UserCreate, UserResponse
+from app.auth.schemas import LoginRequest, Token, UserCreate, UserResponse, RefreshTokenRequest
 from app.auth.deps import get_current_user
 import app.auth.service as auth_service
 
@@ -12,7 +13,20 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate user with email and password and return JWT token."""
+    """Authenticate user with email and password and return access & refresh JWT tokens."""
     return auth_service.login_service(db, login_data)
+
+
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user and return access & refresh JWT tokens."""
+    return auth_service.register_service(db, user_in)
+
+
+@router.post("/refresh", response_model=Token, status_code=status.HTTP_200_OK)
+def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Refresh expired access token using a valid refresh token."""
+    return auth_service.refresh_token_service(db, refresh_data.refresh_token)
 
 
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
