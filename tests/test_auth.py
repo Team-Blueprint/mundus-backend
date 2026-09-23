@@ -1,7 +1,6 @@
+import uuid
 from fastapi.testclient import TestClient
 from main import app
-from app.database import SessionLocal
-from app.auth.service import get_user_by_email
 
 client = TestClient(app)
 
@@ -30,10 +29,11 @@ def test_login_invalid_password():
 
 
 def test_register_returns_tokens():
+    unique_email = f"user_{uuid.uuid4().hex[:8]}@mundus.org"
     response = client.post(
         "/auth/register",
         json={
-            "email": "newuser@mundus.org",
+            "email": unique_email,
             "password": "Password123!",
             "full_name": "New User",
             "role": "supervisor"
@@ -43,7 +43,7 @@ def test_register_returns_tokens():
     data = response.json()
     assert "access_token" in data
     assert "refresh_token" in data
-    assert data["user"]["email"] == "newuser@mundus.org"
+    assert data["user"]["email"] == unique_email
 
 
 def test_refresh_token_success():
@@ -64,7 +64,6 @@ def test_refresh_token_success():
 
 
 def test_get_me_success():
-    # Login first
     login_resp = client.post(
         "/auth/login",
         json={"email": "agency@mundus.org", "password": "Password123!"}
@@ -84,4 +83,3 @@ def test_get_me_success():
 def test_get_me_unauthorized():
     response = client.get("/auth/me")
     assert response.status_code == 401
-
