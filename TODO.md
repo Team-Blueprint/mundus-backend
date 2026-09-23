@@ -28,21 +28,21 @@
 - [x] Photo hash on upload (SHA-256) + DB lookup for exact-duplicate reuse detection
 
 ## Phase 4: Scheduling / Overdue Logic
-- [ ] Read-time computation: `days_since_last_clearance = now() - last_clearance_timestamp`
-- [ ] No cron — compute on dashboard GET request
-- [ ] Configurable overdue threshold (default 10 days) for red-flagging
+- [x] Read-time computation: `days_since_last_clearance = now() - last_clearance_timestamp`
+- [x] No cron — compute on dashboard GET request
+- [x] Configurable overdue threshold (default 10 days) for red-flagging
 
 ## Phase 5: Agency Dashboard API
-- [ ] `GET /dashboard/sites` — all sites, sorted by days-since-clearance descending
-- [ ] Response includes red-flag boolean per site
-- [ ] Agency-only access (read-only, can't submit check-ins)
+- [x] `GET /dashboard/sites` — all sites, sorted by days-since-clearance descending
+- [x] Response includes red-flag boolean per site
+- [x] Agency-only access (read-only, can't submit check-ins)
 
-## Phase 6: Reporter & Enhancements (Nice-to-have, post-MVP)
-- [ ] Reporter "site full" endpoint (single-tap, tied to one site)
-- [ ] Rate limit: one report per site per 12h window (timestamp check)
-- [ ] Before/after pairing endpoint for dashboard side-by-side view
-- [ ] Site history/timeline endpoint (`GET /sites/{id}/history`)
+## Phase 6: Reporter & Enhancements
+- [x] Reporter "site full" endpoint (single-tap, `POST /reporters/flag-site`)
+- [x] Rate limit: one report per site per 12h window (timestamp check)
+- [x] Before/after pairing endpoint (`GET /check-ins/pairings/{site_id}`)
+- [x] Site history/timeline endpoint (`GET /dump-points/{id}/history`)
 
 ## Cross-cutting & Demo Setup
-- [ ] Request logging middleware — every check-in submission logged for audit trail
-- [ ] Seed 5–6 real dump point coordinates + 2 sites pre-flagged overdue for demo
+- [x] Request audit logging middleware — every check-in/request logged with latency & context
+- [x] Seed 5 real dump point coordinates + 2 sites pre-flagged overdue for demo

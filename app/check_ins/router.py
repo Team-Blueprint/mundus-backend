@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.deps import get_current_user, require_role
 from app.auth.models import User, UserRole
-from app.check_ins.schemas import CheckInCreate, CheckInResponse
+from app.check_ins.schemas import CheckInCreate, CheckInResponse, CheckInPairingResponse
 import app.check_ins.service as check_in_service
 
 router = APIRouter(prefix="/check-ins", tags=["Check-Ins"])
@@ -37,3 +37,12 @@ def list_site_check_ins(
     """List check-ins for a specific dump point site."""
     return check_in_service.list_site_check_ins(db, site_id, current_user)
 
+
+@router.get("/pairings/{site_id}", response_model=CheckInPairingResponse, status_code=status.HTTP_200_OK)
+def get_site_photo_pairings(
+    site_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get side-by-side before and after clearance photo pairings for visual confirmation."""
+    return check_in_service.get_site_photo_pairings_service(db, site_id, current_user)

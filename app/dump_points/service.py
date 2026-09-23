@@ -67,3 +67,37 @@ def update_dump_point(db: Session, dump_point_id: int, update_data: DumpPointUpd
     db.refresh(db_obj)
     return DumpPointResponse.from_orm_computed(db_obj)
 
+
+def get_site_history_timeline(db: Session, dump_point_id: int, current_user: User) -> dict:
+    dump_point = get_dump_point_by_id(db, dump_point_id, current_user)
+
+    from app.check_ins.models import CheckIn
+    from app.check_ins.schemas import CheckInResponse
+    from app.reporters.models import ReporterFlag
+    from app.reporters.schemas import ReporterFlagResponse
+
+    check_ins = db.query(CheckIn).filter(CheckIn.site_id == dump_point_id).order_by(CheckIn.server_timestamp.desc()).all()
+    reporter_flags = db.query(ReporterFlag).filter(ReporterFlag.site_id == dump_point_id).order_by(ReporterFlag.timestamp.desc()).all()
+
+    events = []
+    for ci in check_ins:
+        events.append({
+            "event_type": f"check_in_{ci.type.value}",
+            "timestamp": ci.server_timestamp.isoformat(),
+            "details": CheckInResponse.model_validate(ci).model_dump(),
+        })
+
+    for rf in reporter_flags:
+        events.append({
+            "event_type": "reporter_flag_site_full",
+            "timestamp": rf.timestamp.isoformat(),
+            "details": ReporterFlagResponse.from_orm_custom(rf).model_dump(),
+        })
+
+    events.sort(key=lambda e: e["timestamp"], reverse=True)
+
+    return {
+        "site": dump_point.model_dump(),
+        "total_events": len(events),
+        "timeline": events,
+    }

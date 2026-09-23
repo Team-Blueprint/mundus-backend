@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.database import engine, Base, SessionLocal
 from app.auth.models import User, UserRole
 import app.check_ins.models  # noqa: Ensure CheckIn model is registered
+import app.reporters.models  # noqa: Ensure ReporterFlag model is registered
 from app.dump_points.models import DumpPoint
 from app.core.security import get_password_hash
 
@@ -127,4 +128,3 @@ def seed():
 
 if __name__ == "__main__":
     seed()
-

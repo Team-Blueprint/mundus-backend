@@ -30,3 +30,8 @@ class CheckInResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class CheckInPairingResponse(BaseModel):
+    before_check_in: CheckInResponse | None = None
+    after_check_in: CheckInResponse | None = None
+    is_cleared: bool = False

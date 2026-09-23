@@ -8,6 +8,7 @@ from app.database import Base
 import app.auth.models  # noqa
 import app.dump_points.models  # noqa
 import app.check_ins.models  # noqa
+import app.reporters.models  # noqa
 
 config = context.config
 
@@ -54,4 +55,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

@@ -38,6 +38,16 @@ def get_dump_point(
     return dump_point_service.get_dump_point_by_id(db, id, current_user)
 
 
+@router.get("/{id}/history", status_code=status.HTTP_200_OK)
+def get_site_history_timeline(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get chronological timeline history of all check-ins, clearance events, and reporter flags for a site."""
+    return dump_point_service.get_site_history_timeline(db, id, current_user)
+
+
 @router.put("/{id}/assign", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def assign_supervisor(
     id: int,
@@ -58,4 +68,3 @@ def update_dump_point(
 ):
     """Update dump point details."""
     return dump_point_service.update_dump_point(db, id, update_data)
-

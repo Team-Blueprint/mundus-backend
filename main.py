@@ -1,11 +1,15 @@
-from fastapi import FastAPI, status
+import time
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.core.logging import logger
 from app.core.exceptions import MundusException, mundus_exception_handler, global_exception_handler
 from app.auth.router import router as auth_router
 from app.media.router import router as media_router
 from app.dump_points.router import router as dump_points_router
 from app.check_ins.router import router as check_ins_router
+from app.dashboard.router import router as dashboard_router
+from app.reporters.router import router as reporters_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -23,14 +27,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def audit_request_logging_middleware(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time_ms = (time.time() - start_time) * 1000.0
+
+    user_id = getattr(request.state, "user_id", None)
+    logger.info(
+        f"AUDIT {request.method} {request.url.path} - Status: {response.status_code} - Latency: {process_time_ms:.1f}ms",
+        extra={"user_id": user_id}
+    )
+    return response
+
+
 # Exception handlers
 app.add_exception_handler(MundusException, mundus_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
+# Include module routers directly without v1 prefix
 app.include_router(auth_router)
 app.include_router(media_router)
 app.include_router(dump_points_router)
 app.include_router(check_ins_router)
+app.include_router(dashboard_router)
+app.include_router(reporters_router)
 
 
 @app.get(

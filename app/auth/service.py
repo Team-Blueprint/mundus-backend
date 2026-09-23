@@ -1,10 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import status
-from app.auth.models import User, UserRole
 from app.auth.models import User
 from app.auth.schemas import UserCreate, LoginRequest, Token, UserResponse
-from app.core.security import get_password_hash, verify_password, create_access_token
-from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, decode_access_token
 from app.core.security import (
     get_password_hash,
     verify_password,
@@ -82,12 +79,6 @@ def authenticate_user(db: Session, login_data: LoginRequest) -> User:
 
 def login_service(db: Session, login_data: LoginRequest) -> Token:
     user = authenticate_user(db, login_data)
-    access_token = create_access_token(subject=user.id, role=user.role.value)
-    return Token(
-        access_token=access_token,
-        token_type="bearer",
-        user=UserResponse.model_validate(user),
-    )
     return generate_tokens_for_user(user)
 
 

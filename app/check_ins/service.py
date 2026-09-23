@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from fastapi import status
 from app.check_ins.models import CheckIn, CheckInType, CheckInStatus
-from app.check_ins.schemas import CheckInCreate, CheckInResponse
+from app.check_ins.schemas import CheckInCreate, CheckInResponse, CheckInPairingResponse
 from app.dump_points.models import DumpPoint
 from app.auth.models import User, UserRole
 from app.config import settings
@@ -114,3 +114,38 @@ def list_all_check_ins(db: Session, current_user: User) -> list[CheckInResponse]
     check_ins = query.order_by(CheckIn.server_timestamp.desc()).all()
     return [CheckInResponse.model_validate(ci) for ci in check_ins]
 
+
+def get_site_photo_pairings_service(db: Session, site_id: int, current_user: User) -> CheckInPairingResponse:
+    site = db.query(DumpPoint).filter(DumpPoint.id == site_id).first()
+    if not site:
+        raise EntityNotFoundException("DumpPoint", site_id)
+
+    if current_user.role == UserRole.SUPERVISOR and site.assigned_supervisor_id != current_user.id:
+        raise PermissionDeniedException("Supervisors can only view photo pairings for their assigned sites.")
+
+    latest_before = (
+        db.query(CheckIn)
+        .filter(CheckIn.site_id == site_id, CheckIn.type == CheckInType.BEFORE)
+        .order_by(CheckIn.server_timestamp.desc())
+        .first()
+    )
+
+    latest_after = (
+        db.query(CheckIn)
+        .filter(CheckIn.site_id == site_id, CheckIn.type == CheckInType.AFTER)
+        .order_by(CheckIn.server_timestamp.desc())
+        .first()
+    )
+
+    is_cleared = False
+    if latest_after and latest_before:
+        if latest_after.server_timestamp >= latest_before.server_timestamp:
+            is_cleared = True
+    elif latest_after and not latest_before:
+        is_cleared = True
+
+    return CheckInPairingResponse(
+        before_check_in=CheckInResponse.model_validate(latest_before) if latest_before else None,
+        after_check_in=CheckInResponse.model_validate(latest_after) if latest_after else None,
+        is_cleared=is_cleared,
+    )
