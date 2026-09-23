@@ -6,6 +6,8 @@ from app.config import settings
 from app.database import Base
 # Import all model modules for Alembic autogenerate discovery
 import app.auth.models  # noqa
+import app.dump_points.models  # noqa
+import app.check_ins.models  # noqa
 
 config = context.config
 
