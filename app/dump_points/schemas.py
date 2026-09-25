@@ -32,26 +32,55 @@ class DumpPointAssign(BaseModel):
 
 class DumpPointResponse(DumpPointBase):
     id: int
+    assigned_contractor_name: str | None = None
+    assigned_supervisor_name: str | None = None
     last_clearance_timestamp: datetime | None = None
     created_at: datetime
+    formatted_last_cleared: str | None = None
     days_since_last_clearance: float | None = None
     is_overdue: bool = False
+    status: str = "on_schedule"
+    flags: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
     @classmethod
-    def from_orm_computed(cls, dump_point):
+    def from_orm_computed(cls, dump_point, flags: list[str] | None = None):
         resp = cls.model_validate(dump_point)
+
+        if hasattr(dump_point, "assigned_supervisor") and dump_point.assigned_supervisor:
+            resp.assigned_supervisor_name = (
+                dump_point.assigned_supervisor.full_name or dump_point.assigned_supervisor.email
+            )
+        resp.assigned_contractor_name = dump_point.assigned_contractor_id
+
         if dump_point.last_clearance_timestamp:
             now = datetime.now(timezone.utc)
             last_ts = dump_point.last_clearance_timestamp
+
             if last_ts.tzinfo is None:
                 last_ts = last_ts.replace(tzinfo=timezone.utc)
             diff_days = (now - last_ts).total_seconds() / 86400.0
             resp.days_since_last_clearance = round(diff_days, 1)
-            resp.is_overdue = diff_days >= settings.OVERDUE_THRESHOLD_DAYS
+            resp.formatted_last_cleared = last_ts.strftime("%d %b %Y, %I:%M %p")
+
+            if diff_days > settings.OVERDUE_THRESHOLD_DAYS:
+                resp.status = "critical"
+                resp.is_overdue = True
+            elif diff_days >= dump_point.interval_days:
+                resp.status = "overdue"
+                resp.is_overdue = True
+            else:
+                resp.status = "on_schedule"
+                resp.is_overdue = False
         else:
             resp.days_since_last_clearance = None
-            resp.is_overdue = True  # Never cleared site is overdue by default
+            resp.formatted_last_cleared = None
+            resp.status = "critical"
+            resp.is_overdue = True
+
+        if flags is not None:
+            resp.flags = flags
+
         return resp
 

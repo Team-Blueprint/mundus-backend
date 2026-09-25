@@ -1,27 +1,54 @@
+from app.auth.models import User, UserRole
+from app.dump_points.service import list_dump_points
+from app.dashboard.schemas import DashboardStatsResponse, DashboardSummaryResponse
 from sqlalchemy.orm import Session
-from app.dump_points.models import DumpPoint
-from app.dashboard.schemas import DashboardSiteResponse, DashboardSummaryResponse
 
 
-def get_agency_dashboard(db: Session) -> DashboardSummaryResponse:
-    sites = db.query(DumpPoint).all()
-    dashboard_sites = [DashboardSiteResponse.from_dump_point(s) for s in sites]
 
-    # Sort descending by days_since_last_clearance
-    # Sites never cleared (days_since_last_clearance is None) are treated as infinity float('inf') to appear first
-    sorted_sites = sorted(
-        dashboard_sites,
-        key=lambda s: s.days_since_last_clearance if s.days_since_last_clearance is not None else float('inf'),
-        reverse=True,
+def get_dashboard_stats(db: Session) -> DashboardStatsResponse:
+    # Dummy agency user to get all dump points without supervisor scoping
+    admin_context = User(id=0, role=UserRole.AGENCY)
+    all_sites = list_dump_points(db, admin_context)
+
+    total_sites = len(all_sites)
+    on_schedule_count = sum(1 for s in all_sites if s.status == "on_schedule")
+    overdue_count = sum(1 for s in all_sites if s.status == "overdue")
+    critical_count = sum(1 for s in all_sites if s.status == "critical")
+    flagged_count = sum(1 for s in all_sites if len(s.flags) > 0)
+
+    return DashboardStatsResponse(
+        total_sites=total_sites,
+        on_schedule_count=on_schedule_count,
+        overdue_count=overdue_count,
+        critical_count=critical_count,
+        flagged_count=flagged_count,
     )
 
-    overdue_count = sum(1 for s in sorted_sites if s.is_overdue)
-    cleared_count = len(sorted_sites) - overdue_count
 
+def get_agency_dashboard(
+    db: Session,
+    status_filter: str | None = None,
+    search_query: str | None = None,
+) -> DashboardSummaryResponse:
+    admin_context = User(id=0, role=UserRole.AGENCY)
+    all_sites = list_dump_points(db, admin_context)
+
+    total_sites = len(all_sites)
+    on_schedule_count = sum(1 for s in all_sites if s.status == "on_schedule")
+    overdue_count = sum(1 for s in all_sites if s.status == "overdue")
+    critical_count = sum(1 for s in all_sites if s.status == "critical")
+    flagged_count = sum(1 for s in all_sites if len(s.flags) > 0)
+
+    # Apply filtering for the returned sites array
+    filtered_sites = list_dump_points(
+        db, admin_context, status_filter=status_filter, search_query=search_query
+    )
     return DashboardSummaryResponse(
-        total_sites=len(sorted_sites),
-        overdue_sites_count=overdue_count,
-        cleared_sites_count=cleared_count,
-        sites=sorted_sites,
+        total_sites=total_sites,
+        on_schedule_count=on_schedule_count,
+        overdue_count=overdue_count,
+        critical_count=critical_count,
+        flagged_count=flagged_count,
+        sites=filtered_sites,
     )
 

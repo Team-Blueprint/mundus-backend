@@ -1,8 +1,46 @@
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta, timezone
 from app.dump_points.models import DumpPoint
 from app.dump_points.schemas import DumpPointCreate, DumpPointUpdate, DumpPointAssign, DumpPointResponse
 from app.auth.models import User, UserRole
 from app.core.exceptions import EntityNotFoundException, PermissionDeniedException
+
+
+def get_site_flags(db: Session, site_id: int) -> list[str]:
+    from app.check_ins.models import CheckIn, CheckInStatus
+    from app.reporters.models import ReporterFlag
+
+    flags = []
+
+    # 1. Reporter flag within 12h
+    twelve_hours_ago = datetime.now(timezone.utc) - timedelta(hours=12)
+    recent_reporter_flag = (
+        db.query(ReporterFlag)
+        .filter(ReporterFlag.site_id == site_id, ReporterFlag.timestamp >= twelve_hours_ago)
+        .first()
+    )
+    if recent_reporter_flag:
+        flags.append("Reported full")
+
+    # 2. Check-in flags (location mismatch or duplicate photo)
+    recent_check_in = (
+        db.query(CheckIn)
+        .filter(CheckIn.site_id == site_id)
+        .order_by(CheckIn.server_timestamp.desc())
+        .first()
+    )
+
+    if recent_check_in:
+        if recent_check_in.status == CheckInStatus.LOCATION_MISMATCH or recent_check_in.distance_from_site_meters > 100:
+            dist = int(round(recent_check_in.distance_from_site_meters))
+            flags.append(f"Location mismatch ({dist} m)")
+
+        if recent_check_in.flags and any("duplicate" in str(f).lower() for f in recent_check_in.flags):
+            flags.append("Duplicate photo")
+        elif recent_check_in.status == CheckInStatus.FLAGGED:
+            flags.append("Duplicate photo")
+
+    return flags
 
 
 def create_dump_point(db: Session, dump_point_in: DumpPointCreate) -> DumpPointResponse:
@@ -17,16 +55,55 @@ def create_dump_point(db: Session, dump_point_in: DumpPointCreate) -> DumpPointR
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
-    return DumpPointResponse.from_orm_computed(db_obj)
+    site_flags = get_site_flags(db, db_obj.id)
+    return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
-
-def list_dump_points(db: Session, current_user: User) -> list[DumpPointResponse]:
+def list_dump_points(
+    db: Session,
+    current_user: User,
+    status_filter: str | None = None,
+    search_query: str | None = None,
+) -> list[DumpPointResponse]:
     query = db.query(DumpPoint)
     if current_user.role == UserRole.SUPERVISOR:
         query = query.filter(DumpPoint.assigned_supervisor_id == current_user.id)
 
     dump_points = query.all()
-    return [DumpPointResponse.from_orm_computed(dp) for dp in dump_points]
+    results = []
+    for dp in dump_points:
+        site_flags = get_site_flags(db, dp.id)
+        resp = DumpPointResponse.from_orm_computed(dp, flags=site_flags)
+        results.append(resp)
+
+    # Filter by status if requested
+    if status_filter and status_filter.lower() != "all":
+        sf = status_filter.lower()
+        if sf == "flagged":
+            results = [r for r in results if len(r.flags) > 0]
+        elif sf in ["critical", "overdue", "on_schedule"]:
+            results = [r for r in results if r.status == sf]
+
+    # Filter by search query if requested
+    if search_query:
+        q = search_query.lower()
+
+        def matches(r: DumpPointResponse) -> bool:
+            if q in r.name.lower():
+                return True
+            if r.assigned_contractor_name and q in r.assigned_contractor_name.lower():
+                return True
+            if r.assigned_supervisor_name and q in r.assigned_supervisor_name.lower():
+                return True
+            return False
+
+        results = [r for r in results if matches(r)]
+
+    # Sort by days_since_last_clearance descending
+    results.sort(
+        key=lambda r: r.days_since_last_clearance if r.days_since_last_clearance is not None else float("inf"),
+        reverse=True,
+    )
+    return results
 
 
 def get_dump_point_by_id(db: Session, dump_point_id: int, current_user: User = None) -> DumpPointResponse:
@@ -38,7 +115,8 @@ def get_dump_point_by_id(db: Session, dump_point_id: int, current_user: User = N
         if db_obj.assigned_supervisor_id != current_user.id:
             raise PermissionDeniedException("Supervisors can only access their assigned dump points.")
 
-    return DumpPointResponse.from_orm_computed(db_obj)
+    site_flags = get_site_flags(db, db_obj.id)
+    return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
 def assign_supervisor(db: Session, dump_point_id: int, assign_data: DumpPointAssign) -> DumpPointResponse:
@@ -52,7 +130,8 @@ def assign_supervisor(db: Session, dump_point_id: int, assign_data: DumpPointAss
 
     db.commit()
     db.refresh(db_obj)
-    return DumpPointResponse.from_orm_computed(db_obj)
+    site_flags = get_site_flags(db, db_obj.id)
+    return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
 def update_dump_point(db: Session, dump_point_id: int, update_data: DumpPointUpdate) -> DumpPointResponse:
@@ -65,7 +144,8 @@ def update_dump_point(db: Session, dump_point_id: int, update_data: DumpPointUpd
 
     db.commit()
     db.refresh(db_obj)
-    return DumpPointResponse.from_orm_computed(db_obj)
+    site_flags = get_site_flags(db, db_obj.id)
+    return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
 def get_site_history_timeline(db: Session, dump_point_id: int, current_user: User) -> dict:
