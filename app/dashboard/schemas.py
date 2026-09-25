@@ -9,7 +9,9 @@ class DashboardStatsResponse(BaseModel):
     total_sites: int
     total_contractors: int = 4
     on_schedule_count: int
+    cleared_sites_count: int = 0
     overdue_count: int
+    overdue_sites_count: int = 0
     critical_count: int
     flagged_count: int
 
@@ -18,7 +20,9 @@ class DashboardSummaryResponse(BaseModel):
     total_sites: int
     total_contractors: int = 4
     on_schedule_count: int
+    cleared_sites_count: int = 0
     overdue_count: int
+    overdue_sites_count: int = 0
     critical_count: int
     flagged_count: int
     sites: list[DumpPointResponse]
