@@ -52,7 +52,18 @@ class DumpPointResponse(DumpPointBase):
             resp.assigned_supervisor_name = (
                 dump_point.assigned_supervisor.full_name or dump_point.assigned_supervisor.email
             )
-        resp.assigned_contractor_name = dump_point.assigned_contractor_id
+        CONTRACTOR_NAME_MAP = {
+            "CTR-AK-001": "CleanCity Services",
+            "CTR-AK-002": "EcoWaste Management",
+            "CTR-AK-003": "GreenGlobe Logistics",
+            "CTR-AK-004": "Apex Sanitation",
+        }
+        if dump_point.assigned_contractor_id:
+            resp.assigned_contractor_name = CONTRACTOR_NAME_MAP.get(
+                dump_point.assigned_contractor_id, dump_point.assigned_contractor_id
+            )
+        else:
+            resp.assigned_contractor_name = None
 
         if dump_point.last_clearance_timestamp:
             now = datetime.now(timezone.utc)

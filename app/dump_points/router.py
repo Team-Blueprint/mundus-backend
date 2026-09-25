@@ -9,6 +9,7 @@ import app.dump_points.service as dump_point_service
 router = APIRouter(prefix="/dump-points", tags=["Dump Points"])
 
 
+@router.post("", response_model=DumpPointResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/create", response_model=DumpPointResponse, status_code=status.HTTP_201_CREATED)
 def create_dump_point(
     dump_point_in: DumpPointCreate,
@@ -19,6 +20,7 @@ def create_dump_point(
     return dump_point_service.create_dump_point(db, dump_point_in)
 
 
+@router.get("", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 @router.get("/all", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 def list_dump_points(
     status_filter: str | None = Query(None, alias="status", description="Filter by status: critical, overdue, on_schedule, flagged, all"),
@@ -31,6 +33,7 @@ def list_dump_points(
 
 
 
+@router.get("/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 @router.get("/detail/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def get_dump_point(
     id: int,
@@ -53,6 +56,7 @@ def get_site_history_timeline(
 
 
 
+@router.put("/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 @router.put("/assign/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def assign_supervisor(
     id: int,

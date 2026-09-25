@@ -15,11 +15,14 @@ from app.check_ins.models import CheckIn, CheckInType, CheckInStatus
 from app.reporters.models import ReporterFlag
 
 
-def seed():
+def seed(db: SessionLocal = None):
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
 
-    db = SessionLocal()
+    close_db = False
+    if db is None:
+        db = SessionLocal()
+        close_db = True
     try:
         demo_users = [
             {
@@ -208,7 +211,8 @@ def seed():
         db.commit()
         print("Database seed completed successfully!")
     finally:
-        db.close()
+        if close_db:
+            db.close()
 
 
 if __name__ == "__main__":

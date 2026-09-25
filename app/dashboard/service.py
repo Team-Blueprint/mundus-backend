@@ -1,8 +1,20 @@
 from app.auth.models import User, UserRole
 from app.dump_points.service import list_dump_points
-from app.dashboard.schemas import DashboardStatsResponse, DashboardSummaryResponse
+from app.dashboard.schemas import (
+    DashboardStatsResponse,
+    DashboardSummaryResponse,
+    ContractorDashboardResponse,
+    ContractorGroupResponse,
+    ContractorDumpPointItem,
+)
 from sqlalchemy.orm import Session
 
+CONTRACTOR_MAP = {
+    "CTR-AK-001": "CleanCity Services",
+    "CTR-AK-002": "EcoWaste Management",
+    "CTR-AK-003": "GreenGlobe Logistics",
+    "CTR-AK-004": "Apex Sanitation",
+}
 
 
 def get_dashboard_stats(db: Session) -> DashboardStatsResponse:
@@ -16,8 +28,13 @@ def get_dashboard_stats(db: Session) -> DashboardStatsResponse:
     critical_count = sum(1 for s in all_sites if s.status == "critical")
     flagged_count = sum(1 for s in all_sites if len(s.flags) > 0)
 
+    # Compute unique active contractors
+    contractor_ids = {s.assigned_contractor_id for s in all_sites if s.assigned_contractor_id}
+    total_contractors = max(len(contractor_ids), len(CONTRACTOR_MAP))
+
     return DashboardStatsResponse(
         total_sites=total_sites,
+        total_contractors=total_contractors,
         on_schedule_count=on_schedule_count,
         overdue_count=overdue_count,
         critical_count=critical_count,
@@ -39,12 +56,16 @@ def get_agency_dashboard(
     critical_count = sum(1 for s in all_sites if s.status == "critical")
     flagged_count = sum(1 for s in all_sites if len(s.flags) > 0)
 
+    contractor_ids = {s.assigned_contractor_id for s in all_sites if s.assigned_contractor_id}
+    total_contractors = max(len(contractor_ids), len(CONTRACTOR_MAP))
+
     # Apply filtering for the returned sites array
     filtered_sites = list_dump_points(
         db, admin_context, status_filter=status_filter, search_query=search_query
     )
     return DashboardSummaryResponse(
         total_sites=total_sites,
+        total_contractors=total_contractors,
         on_schedule_count=on_schedule_count,
         overdue_count=overdue_count,
         critical_count=critical_count,
@@ -52,3 +73,53 @@ def get_agency_dashboard(
         sites=filtered_sites,
     )
 
+
+def get_contractors_dashboard(
+    db: Session,
+    search_query: str | None = None,
+) -> ContractorDashboardResponse:
+    admin_context = User(id=0, role=UserRole.AGENCY)
+    all_sites = list_dump_points(db, admin_context, search_query=search_query)
+
+    # Group dump points by contractor ID
+    grouped: dict[str, list] = {cid: [] for cid in CONTRACTOR_MAP.keys()}
+    for s in all_sites:
+        cid = s.assigned_contractor_id or "UNASSIGNED"
+        if cid not in grouped:
+            grouped[cid] = []
+        grouped[cid].append(s)
+
+    contractor_groups = []
+    for cid, sites in grouped.items():
+        cname = CONTRACTOR_MAP.get(cid, "Unassigned Contractor" if cid == "UNASSIGNED" else cid)
+        on_sched = sum(1 for s in sites if s.status == "on_schedule")
+        overdue = sum(1 for s in sites if s.status == "overdue")
+        critical = sum(1 for s in sites if s.status == "critical")
+
+        site_items = [
+            ContractorDumpPointItem(
+                id=s.id,
+                name=s.name,
+                status=s.status,
+                formatted_last_cleared=s.formatted_last_cleared,
+                days_since_last_clearance=s.days_since_last_clearance,
+            )
+            for s in sites
+        ]
+
+        contractor_groups.append(
+            ContractorGroupResponse(
+                contractor_id=cid,
+                contractor_name=cname,
+                total_sites=len(sites),
+                on_schedule_sites=on_sched,
+                overdue_sites=overdue,
+                critical_sites=critical,
+                sites=site_items,
+            )
+        )
+
+    return ContractorDashboardResponse(
+        total_contractors=len(contractor_groups),
+        contractors=contractor_groups,
+    )
