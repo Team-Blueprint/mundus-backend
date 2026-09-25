@@ -9,7 +9,7 @@ import app.check_ins.service as check_in_service
 router = APIRouter(prefix="/check-ins", tags=["Check-Ins"])
 
 
-@router.post("", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/new", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
 def submit_check_in(
     check_in_in: CheckInCreate,
     db: Session = Depends(get_db),
@@ -19,7 +19,7 @@ def submit_check_in(
     return check_in_service.submit_check_in_service(db, check_in_in, current_user)
 
 
-@router.get("", response_model=list[CheckInResponse], status_code=status.HTTP_200_OK)
+@router.get("/all", response_model=list[CheckInResponse], status_code=status.HTTP_200_OK)
 def list_check_ins(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

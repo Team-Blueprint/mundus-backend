@@ -16,8 +16,10 @@ def test_reporter_flag_site_success_and_rate_limit():
     agency_headers = get_auth_header("agency@mundus.org")
 
     # Get a site
+    # Get a site (use last site which has no recent flags)
     sites_resp = client.get("/dump-points", headers=agency_headers)
     site_id = sites_resp.json()[0]["id"]
+    site_id = sites_resp.json()[-1]["id"]
 
     # 1. First flag succeeds
     flag_resp = client.post(

@@ -9,7 +9,7 @@ import app.dump_points.service as dump_point_service
 router = APIRouter(prefix="/dump-points", tags=["Dump Points"])
 
 
-@router.post("", response_model=DumpPointResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/create", response_model=DumpPointResponse, status_code=status.HTTP_201_CREATED)
 def create_dump_point(
     dump_point_in: DumpPointCreate,
     db: Session = Depends(get_db),
@@ -19,7 +19,7 @@ def create_dump_point(
     return dump_point_service.create_dump_point(db, dump_point_in)
 
 
-@router.get("", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
+@router.get("/all", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 def list_dump_points(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -28,7 +28,8 @@ def list_dump_points(
     return dump_point_service.list_dump_points(db, current_user)
 
 
-@router.get("/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
+
+@router.get("/detail/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def get_dump_point(
     id: int,
     db: Session = Depends(get_db),
@@ -38,7 +39,8 @@ def get_dump_point(
     return dump_point_service.get_dump_point_by_id(db, id, current_user)
 
 
-@router.get("/{id}/history", status_code=status.HTTP_200_OK)
+
+@router.get("/history/{id}", status_code=status.HTTP_200_OK)
 def get_site_history_timeline(
     id: int,
     db: Session = Depends(get_db),
@@ -48,7 +50,8 @@ def get_site_history_timeline(
     return dump_point_service.get_site_history_timeline(db, id, current_user)
 
 
-@router.put("/{id}/assign", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
+
+@router.put("/assign/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def assign_supervisor(
     id: int,
     assign_data: DumpPointAssign,
@@ -59,7 +62,9 @@ def assign_supervisor(
     return dump_point_service.assign_supervisor(db, id, assign_data)
 
 
-@router.put("/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
+
+
+@router.put("/update/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def update_dump_point(
     id: int,
     update_data: DumpPointUpdate,

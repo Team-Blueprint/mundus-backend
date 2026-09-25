@@ -16,6 +16,7 @@ app = FastAPI(
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
+    servers=[{"url": "/"}],  # Ensures Swagger UI uses current host and port dynamically
 )
 
 # CORS middleware configuration
