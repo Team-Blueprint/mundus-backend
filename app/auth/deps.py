@@ -9,7 +9,7 @@ from app.core.security import decode_access_token
 from app.core.exceptions import MundusException, PermissionDeniedException
 
 http_bearer = HTTPBearer(scheme_name="HttpJwtAuth", auto_error=True)
-
+http_bearer_optional = HTTPBearer(scheme_name="HttpJwtAuthOptional", auto_error=False)
 
 
 def get_current_user(auth: HTTPAuthorizationCredentials = Depends(http_bearer), db: Session = Depends(get_db),) -> User:
@@ -36,6 +36,24 @@ def get_current_user(auth: HTTPAuthorizationCredentials = Depends(http_bearer), 
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     return user
+
+
+def get_current_user_optional(
+    auth: HTTPAuthorizationCredentials | None = Depends(http_bearer_optional),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not auth or not auth.credentials:
+        return None
+    try:
+        payload = decode_access_token(auth.credentials)
+        if not payload or not payload.get("sub"):
+            return None
+        user_id = int(payload["sub"])
+        user = get_user_by_id(db, user_id=user_id)
+        return user if user and user.is_active else None
+    except Exception:
+        return None
+
 
 
 def require_role(allowed_roles: Sequence[UserRole | str]) -> Callable:
