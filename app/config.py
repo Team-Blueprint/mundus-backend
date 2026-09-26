@@ -26,6 +26,23 @@ class Settings(BaseSettings):
     GEOFENCE_RADIUS_METERS: float = 100.0
     OVERDUE_THRESHOLD_DAYS: int = 10
 
+    # Frontend Origin for deep links
+    FRONTEND_ORIGIN: str = "http://localhost:3000"
+
+    # Brevo Email Configuration
+    BREVO_API_KEY: Optional[str] = None
+    BREVO_SENDER_EMAIL: str = "noreply@mundus.org"
+    BREVO_SENDER_NAME: str = "Mundus Waste Tracking"
+
+    # Brevo / SMTP Configuration
+    SMTP_HOST: Optional[str] = "smtp-relay.brevo.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+
+    # FCM Web Push
+    FCM_SERVER_KEY: Optional[str] = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -9,6 +9,10 @@ import app.auth.models  # noqa
 import app.dump_points.models  # noqa
 import app.check_ins.models  # noqa
 import app.reporters.models  # noqa
+import app.contractors.models  # noqa
+import app.agency.models  # noqa
+import app.notifications.models  # noqa
+
 
 config = context.config
 

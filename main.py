@@ -10,6 +10,43 @@ from app.dump_points.router import router as dump_points_router
 from app.check_ins.router import router as check_ins_router
 from app.dashboard.router import router as dashboard_router
 from app.reporters.router import router as reporters_router
+from app.contractors.router import router as contractors_router
+from app.agency.router import router as agency_router
+from app.notifications.router import router as notifications_router
+
+from contextlib import asynccontextmanager
+from app.database import engine, Base
+from sqlalchemy import text
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure all tables exist on startup
+    Base.metadata.create_all(bind=engine)
+    try:
+        with engine.connect() as conn:
+            cursor = conn.connection.cursor()
+            cursor.execute("PRAGMA table_info(dump_points);")
+            dp_cols = [row[1] for row in cursor.fetchall()]
+            if "code" not in dp_cols:
+                conn.execute(text("ALTER TABLE dump_points ADD COLUMN code VARCHAR(50);"))
+                conn.commit()
+            if "sector" not in dp_cols:
+                conn.execute(text("ALTER TABLE dump_points ADD COLUMN sector VARCHAR(100);"))
+                conn.commit()
+
+            cursor.execute("PRAGMA table_info(reporter_flags);")
+            rf_cols = [row[1] for row in cursor.fetchall()]
+            if "reporter_community_id" not in rf_cols:
+                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_community_id INTEGER;"))
+                conn.commit()
+            if "reporter_name" not in rf_cols:
+                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_name VARCHAR(255);"))
+                conn.commit()
+    except Exception as e:
+        logger.warning(f"Lifespan migration check notice: {e}")
+    yield
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -17,7 +54,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     servers=[{"url": "/"}],  # Ensures Swagger UI uses current host and port dynamically
+    lifespan=lifespan,
 )
+
 
 # CORS middleware configuration
 app.add_middleware(
@@ -54,6 +93,10 @@ app.include_router(dump_points_router)
 app.include_router(check_ins_router)
 app.include_router(dashboard_router)
 app.include_router(reporters_router)
+app.include_router(contractors_router)
+app.include_router(agency_router)
+app.include_router(notifications_router)
+
 
 
 @app.get(
