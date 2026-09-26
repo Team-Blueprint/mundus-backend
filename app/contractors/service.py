@@ -1,0 +1,266 @@
+from datetime import datetime, timezone
+from sqlalchemy.orm import Session
+from fastapi import status
+from app.contractors.models import Contractor, ContractorAlert
+from app.contractors.schemas import ContractorCreate, ContractorResponse, ContractorAlertResponse, SubmissionPairResponse
+from app.auth.models import User, UserRole
+from app.dump_points.models import DumpPoint
+from app.dump_points.schemas import DumpPointResponse
+import app.dump_points.service as dump_point_service
+from app.check_ins.models import CheckIn, CheckInType
+from app.check_ins.schemas import CheckInResponse
+from app.core.security import get_password_hash, verify_password
+from app.core.exceptions import MundusException, EntityNotFoundException
+
+
+def create_contractor_service(db: Session, data: ContractorCreate) -> ContractorResponse:
+    # 1. Validate unique contractor name
+    existing_contractor = db.query(Contractor).filter(Contractor.name == data.name.strip()).first()
+    if existing_contractor:
+        raise MundusException(
+            message=f"A contractor with name '{data.name}' already exists.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 2. Validate unique supervisor email
+    existing_user = db.query(User).filter(User.email == data.supervisor_email.strip().lower()).first()
+    if existing_user:
+        raise MundusException(
+            message=f"An account with email '{data.supervisor_email}' already exists.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 3. Create supervisor User
+    supervisor_user = User(
+        email=data.supervisor_email.strip().lower(),
+        hashed_password=get_password_hash(data.password),
+        full_name=data.supervisor_name.strip(),
+        role=UserRole.SUPERVISOR,
+        is_active=True,
+    )
+    db.add(supervisor_user)
+    db.commit()
+    db.refresh(supervisor_user)
+
+    # 4. Create Contractor record
+    contractor = Contractor(
+        name=data.name.strip(),
+        supervisor_name=data.supervisor_name.strip(),
+        supervisor_email=data.supervisor_email.strip().lower(),
+        supervisor_user_id=supervisor_user.id,
+    )
+    db.add(contractor)
+    db.commit()
+    db.refresh(contractor)
+
+    return ContractorResponse(
+        id=contractor.id,
+        name=contractor.name,
+        supervisor_name=contractor.supervisor_name,
+        supervisor_email=contractor.supervisor_email,
+        site_count=0,
+        overdue=0,
+        critical=0,
+        created_at=contractor.created_at,
+    )
+
+
+def list_contractors_service(db: Session, q: str | None = None, status_filter: str | None = None) -> list[ContractorResponse]:
+    contractors = db.query(Contractor).all()
+    all_sites = db.query(DumpPoint).all()
+    now = datetime.now(timezone.utc)
+
+    # Build contractor metrics lookup
+    # Matches either by contractor name or assigned_contractor_id or supervisor_id
+    contractor_sites_map: dict[int, list[DumpPoint]] = {c.id: [] for c in contractors}
+
+    for site in all_sites:
+        for c in contractors:
+            if (
+                site.assigned_contractor_id == c.name
+                or site.assigned_contractor_id == f"CTR-AK-00{c.id}"
+                or site.assigned_contractor_id == str(c.id)
+                or (site.assigned_supervisor_id and site.assigned_supervisor_id == c.supervisor_user_id)
+            ):
+                contractor_sites_map[c.id].append(site)
+                break
+
+    results = []
+    for c in contractors:
+        sites = contractor_sites_map[c.id]
+        site_count = len(sites)
+        overdue_count = 0
+        critical_count = 0
+
+        for site in sites:
+            if site.last_clearance_timestamp:
+                last_ts = site.last_clearance_timestamp
+                if last_ts.tzinfo is None:
+                    last_ts = last_ts.replace(tzinfo=timezone.utc)
+                diff_days = (now - last_ts).total_seconds() / 86400.0
+                if diff_days > 10.0:
+                    critical_count += 1
+                elif diff_days >= site.interval_days:
+                    overdue_count += 1
+            else:
+                critical_count += 1
+
+        # Apply search query filter if provided
+        if q:
+            query = q.lower()
+            if not (query in c.name.lower() or query in c.supervisor_name.lower() or query in c.supervisor_email.lower()):
+                continue
+
+        # Apply status filter if provided
+        if status_filter:
+            sf = status_filter.lower()
+            if sf == "critical" and critical_count == 0:
+                continue
+            elif sf == "overdue" and overdue_count == 0:
+                continue
+
+        results.append(
+            ContractorResponse(
+                id=c.id,
+                name=c.name,
+                supervisor_name=c.supervisor_name,
+                supervisor_email=c.supervisor_email,
+                site_count=site_count,
+                overdue=overdue_count,
+                critical=critical_count,
+                created_at=c.created_at,
+            )
+        )
+
+    return results
+
+
+def get_supervisor_sites_service(db: Session, current_user: User) -> list[DumpPointResponse]:
+    """Returns assigned sites for the supervisor, sorted most overdue first."""
+    return dump_point_service.list_dump_points(db, current_user)
+
+
+def get_supervisor_submissions_service(
+    db: Session,
+    current_user: User,
+    site_id: int | None = None,
+    status_filter: str | None = None,
+) -> list[SubmissionPairResponse]:
+    """Groups supervisor submissions into before/after clearance pairs by site and date."""
+    query = db.query(CheckIn).filter(CheckIn.supervisor_id == current_user.id)
+    if site_id:
+        query = query.filter(CheckIn.site_id == site_id)
+
+    check_ins = query.order_by(CheckIn.server_timestamp.desc()).all()
+
+    # Group by site_id and day (YYYY-MM-DD)
+    groups: dict[tuple[int, str], dict] = {}
+    for ci in check_ins:
+        date_str = ci.server_timestamp.strftime("%Y-%m-%d")
+        key = (ci.site_id, date_str)
+        if key not in groups:
+            site_name = ci.site.name if ci.site else f"Site #{ci.site_id}"
+            groups[key] = {
+                "date": date_str,
+                "site_id": ci.site_id,
+                "site_name": site_name,
+                "before": None,
+                "after": None,
+            }
+
+        ci_dto = CheckInResponse.model_validate(ci)
+        if ci.type == CheckInType.BEFORE and groups[key]["before"] is None:
+            groups[key]["before"] = ci_dto
+        elif ci.type == CheckInType.AFTER and groups[key]["after"] is None:
+            groups[key]["after"] = ci_dto
+
+    results = []
+    for (s_id, d_str), data in groups.items():
+        if data["before"] and data["after"]:
+            pair_status = "complete"
+        elif data["before"]:
+            pair_status = "in_progress"
+        else:
+            pair_status = "partial"
+
+        if status_filter and status_filter.lower() != "all" and pair_status != status_filter.lower():
+            continue
+
+        results.append(
+            SubmissionPairResponse(
+                date=data["date"],
+                site_id=data["site_id"],
+                site_name=data["site_name"],
+                before=data["before"],
+                after=data["after"],
+                status=pair_status,
+            )
+        )
+
+    results.sort(key=lambda x: x.date, reverse=True)
+    return results
+
+
+def get_contractor_alerts_service(db: Session, current_user: User) -> list[ContractorAlertResponse]:
+    # Find supervisor assigned sites
+    assigned_site_ids = [s.id for s in db.query(DumpPoint).filter(DumpPoint.assigned_supervisor_id == current_user.id).all()]
+    if not assigned_site_ids:
+        return []
+
+    alerts = (
+        db.query(ContractorAlert)
+        .filter(ContractorAlert.site_id.in_(assigned_site_ids))
+        .order_by(ContractorAlert.created_at.desc())
+        .all()
+    )
+
+    results = []
+    for a in alerts:
+        site_name = a.site.name if a.site else None
+        results.append(
+            ContractorAlertResponse(
+                id=a.id,
+                site_id=a.site_id,
+                site_name=site_name,
+                message=a.message,
+                is_seen=a.is_seen,
+                created_at=a.created_at,
+            )
+        )
+    return results
+
+
+def mark_contractor_alert_seen_service(db: Session, site_id: int, current_user: User) -> dict:
+    alerts = (
+        db.query(ContractorAlert)
+        .filter(ContractorAlert.site_id == site_id)
+        .all()
+    )
+    for a in alerts:
+        a.is_seen = True
+    db.commit()
+    return {"message": f"Alerts for site {site_id} marked as seen.", "site_id": site_id}
+
+
+def change_user_password_service(db: Session, user_id: int, current_user: User, current_password: str | None, new_password: str) -> dict:
+    if not new_password or len(new_password) < 6:
+        raise MundusException(
+            message="Password must be at least 6 characters long.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise EntityNotFoundException("User", user_id)
+
+    # If updating own password, verify current password if supplied
+    if current_user.id == target_user.id and current_password:
+        if not verify_password(current_password, target_user.hashed_password):
+            raise MundusException(
+                message="Incorrect current password.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    target_user.hashed_password = get_password_hash(new_password)
+    db.commit()
+    return {"message": "Password updated successfully."}
