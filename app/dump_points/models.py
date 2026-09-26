@@ -11,6 +11,8 @@ class DumpPoint(Base):
     name = Column(String(255), nullable=False, index=True)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
+    code = Column(String(50), nullable=True, index=True)
+    sector = Column(String(100), nullable=True)
     assigned_contractor_id = Column(String(100), nullable=True)
     assigned_supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     interval_days = Column(Integer, default=7, nullable=False)
@@ -19,4 +21,5 @@ class DumpPoint(Base):
 
     assigned_supervisor = relationship("User", foreign_keys=[assigned_supervisor_id])
     check_ins = relationship("CheckIn", back_populates="site", cascade="all, delete-orphan")
+
 

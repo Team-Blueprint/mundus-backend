@@ -48,6 +48,8 @@ def create_dump_point(db: Session, dump_point_in: DumpPointCreate) -> DumpPointR
         name=dump_point_in.name,
         latitude=dump_point_in.latitude,
         longitude=dump_point_in.longitude,
+        code=dump_point_in.code,
+        sector=dump_point_in.sector,
         assigned_contractor_id=dump_point_in.assigned_contractor_id,
         assigned_supervisor_id=dump_point_in.assigned_supervisor_id,
         interval_days=dump_point_in.interval_days,
@@ -57,6 +59,7 @@ def create_dump_point(db: Session, dump_point_in: DumpPointCreate) -> DumpPointR
     db.refresh(db_obj)
     site_flags = get_site_flags(db, db_obj.id)
     return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
+
 
 def list_dump_points(
     db: Session,
@@ -89,6 +92,10 @@ def list_dump_points(
 
         def matches(r: DumpPointResponse) -> bool:
             if q in r.name.lower():
+                return True
+            if r.code and q in r.code.lower():
+                return True
+            if r.sector and q in r.sector.lower():
                 return True
             if r.assigned_contractor_name and q in r.assigned_contractor_name.lower():
                 return True
@@ -124,8 +131,9 @@ def assign_supervisor(db: Session, dump_point_id: int, assign_data: DumpPointAss
     if not db_obj:
         raise EntityNotFoundException("DumpPoint", dump_point_id)
 
-    db_obj.assigned_supervisor_id = assign_data.assigned_supervisor_id
-    if assign_data.assigned_contractor_id:
+    if assign_data.assigned_supervisor_id is not None:
+        db_obj.assigned_supervisor_id = assign_data.assigned_supervisor_id
+    if assign_data.assigned_contractor_id is not None:
         db_obj.assigned_contractor_id = assign_data.assigned_contractor_id
 
     db.commit()
@@ -148,36 +156,84 @@ def update_dump_point(db: Session, dump_point_id: int, update_data: DumpPointUpd
     return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
-def get_site_history_timeline(db: Session, dump_point_id: int, current_user: User) -> dict:
-    dump_point = get_dump_point_by_id(db, dump_point_id, current_user)
+def delete_dump_point(db: Session, dump_point_id: int) -> dict:
+    db_obj = db.query(DumpPoint).filter(DumpPoint.id == dump_point_id).first()
+    if not db_obj:
+        raise EntityNotFoundException("DumpPoint", dump_point_id)
 
+    from app.reporters.models import ReporterFlag, Reporter
     from app.check_ins.models import CheckIn
-    from app.check_ins.schemas import CheckInResponse
+    from app.contractors.models import ContractorAlert
+
+    # Clean up related records
+    db.query(ReporterFlag).filter(ReporterFlag.site_id == dump_point_id).delete(synchronize_session=False)
+    db.query(Reporter).filter(Reporter.site_id == dump_point_id).delete(synchronize_session=False)
+    db.query(CheckIn).filter(CheckIn.site_id == dump_point_id).delete(synchronize_session=False)
+    db.query(ContractorAlert).filter(ContractorAlert.site_id == dump_point_id).delete(synchronize_session=False)
+
+    site_name = db_obj.name
+    db.delete(db_obj)
+    db.commit()
+    return {"message": f"Dump point '{site_name}' deleted successfully.", "id": dump_point_id}
+
+
+
+def get_site_history_timeline(db: Session, dump_point_id: int, current_user: User) -> list[dict]:
+    # Verify site access
+    get_dump_point_by_id(db, dump_point_id, current_user)
+
+    from app.check_ins.models import CheckIn, CheckInType
     from app.reporters.models import ReporterFlag
-    from app.reporters.schemas import ReporterFlagResponse
 
     check_ins = db.query(CheckIn).filter(CheckIn.site_id == dump_point_id).order_by(CheckIn.server_timestamp.desc()).all()
     reporter_flags = db.query(ReporterFlag).filter(ReporterFlag.site_id == dump_point_id).order_by(ReporterFlag.timestamp.desc()).all()
 
     events = []
+
     for ci in check_ins:
-        events.append({
-            "event_type": f"check_in_{ci.type.value}",
-            "timestamp": ci.server_timestamp.isoformat(),
-            "details": CheckInResponse.model_validate(ci).model_dump(),
-        })
+        actor_name = ci.supervisor.full_name if ci.supervisor else "Supervisor"
+        ts_iso = ci.server_timestamp.isoformat()
+        photo_info = {
+            "photo_url": ci.photo_url,
+            "lat": ci.latitude,
+            "lng": ci.longitude,
+            "distance_m": round(ci.distance_from_site_meters, 1),
+            "at": ts_iso,
+        }
+
+        if ci.type == CheckInType.BEFORE:
+            events.append({
+                "kind": "check_in",
+                "at": ts_iso,
+                "actor": actor_name,
+                "note": "Before photo submitted",
+                "before": photo_info,
+                "after": None,
+            })
+        else:
+            events.append({
+                "kind": "check_in",
+                "at": ts_iso,
+                "actor": actor_name,
+                "note": "After photo submitted",
+                "before": None,
+                "after": photo_info,
+            })
+            events.append({
+                "kind": "clearance",
+                "at": ts_iso,
+                "actor": "system",
+                "note": "Visit complete, counter reset",
+            })
 
     for rf in reporter_flags:
+        rep_actor = rf.reporter_name or "Community Reporter"
         events.append({
-            "event_type": "reporter_flag_site_full",
-            "timestamp": rf.timestamp.isoformat(),
-            "details": ReporterFlagResponse.from_orm_custom(rf).model_dump(),
+            "kind": "flag",
+            "at": rf.timestamp.isoformat(),
+            "actor": f"{rep_actor} (reporter)",
+            "note": rf.note or "Site reported full",
         })
 
-    events.sort(key=lambda e: e["timestamp"], reverse=True)
-
-    return {
-        "site": dump_point.model_dump(),
-        "total_events": len(events),
-        "timeline": events,
-    }
+    events.sort(key=lambda e: e["at"], reverse=True)
+    return events

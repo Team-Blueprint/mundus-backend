@@ -1,15 +1,18 @@
 from datetime import datetime, timezone
+from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.config import settings
 
 
 class DumpPointBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=255)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
+    code: str | None = None
+    sector: str | None = None
     assigned_contractor_id: str | None = None
     assigned_supervisor_id: int | None = None
-    interval_days: int = 7
+    interval_days: int = Field(default=7, ge=1)
 
 
 class DumpPointCreate(DumpPointBase):
@@ -17,16 +20,18 @@ class DumpPointCreate(DumpPointBase):
 
 
 class DumpPointUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(None, min_length=2, max_length=255)
     latitude: float | None = Field(None, ge=-90, le=90)
     longitude: float | None = Field(None, ge=-180, le=180)
+    code: str | None = None
+    sector: str | None = None
     assigned_contractor_id: str | None = None
     assigned_supervisor_id: int | None = None
-    interval_days: int | None = None
+    interval_days: int | None = Field(None, ge=1)
 
 
 class DumpPointAssign(BaseModel):
-    assigned_supervisor_id: int
+    assigned_supervisor_id: int | None = None
     assigned_contractor_id: str | None = None
 
 
@@ -95,3 +100,11 @@ class DumpPointResponse(DumpPointBase):
 
         return resp
 
+
+class HistoryEventItem(BaseModel):
+    kind: str  # check_in, flag, clearance
+    at: str
+    actor: str
+    note: str
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
