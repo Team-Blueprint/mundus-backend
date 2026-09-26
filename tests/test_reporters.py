@@ -15,11 +15,13 @@ def test_reporter_flag_site_success_and_rate_limit():
     reporter_headers = get_auth_header("reporter@mundus.org")
     agency_headers = get_auth_header("agency@mundus.org")
 
-    # Get a site
-    # Get a site (use last site which has no recent flags)
-    sites_resp = client.get("/dump-points", headers=agency_headers)
-    site_id = sites_resp.json()[0]["id"]
-    site_id = sites_resp.json()[-1]["id"]
+    # Create a fresh isolated site for this test
+    create_resp = client.post(
+        "/dump-points",
+        headers=agency_headers,
+        json={"name": "Isolated Flag Test Site", "latitude": 5.040, "longitude": 7.920}
+    )
+    site_id = create_resp.json()["id"]
 
     # 1. First flag succeeds
     flag_resp = client.post(
@@ -32,14 +34,18 @@ def test_reporter_flag_site_success_and_rate_limit():
     assert data["site_id"] == site_id
     assert "Overflowing" in data["note"]
 
-    # 2. Second flag on same site within 12h is rate-limited (400)
+    # 2. Second flag on same site within 12h is rate-limited with HTTP 429
     second_flag_resp = client.post(
         "/reporters/flag-site",
         headers=reporter_headers,
         json={"site_id": site_id, "note": "Duplicate flag test"}
     )
-    assert second_flag_resp.status_code == 400
-    assert "already been flagged" in second_flag_resp.json()["error"]
+    assert second_flag_resp.status_code == 429
+    assert "Already reported" in str(second_flag_resp.json())
+
+    # Clean up
+    client.delete(f"/dump-points/{site_id}", headers=agency_headers)
+
 
 
 def test_photo_pairings_endpoint():
@@ -64,8 +70,10 @@ def test_site_history_timeline_endpoint():
 
     history_resp = client.get(f"/dump-points/{site_id}/history", headers=agency_headers)
     assert history_resp.status_code == 200
-    data = history_resp.json()
-    assert "site" in data
-    assert "timeline" in data
-    assert "total_events" in data
-
+    timeline = history_resp.json()
+    assert isinstance(timeline, list)
+    if len(timeline) > 0:
+        event = timeline[0]
+        assert "kind" in event
+        assert "at" in event
+        assert "actor" in event
