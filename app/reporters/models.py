@@ -39,6 +39,7 @@ class ReporterFlag(Base):
     reporter_name = Column(String(255), nullable=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     note = Column(String(500), nullable=True)
+    photo_url = Column(String(500), nullable=True)  # evidence photo from reporter upload
 
     site = relationship("DumpPoint")
     reporter = relationship("User", foreign_keys=[reporter_id])

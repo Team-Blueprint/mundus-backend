@@ -92,6 +92,8 @@ def list_reporters_service(
     site_id: int | None = None,
     status_filter: str | None = None,
     q: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
 ) -> list[ReporterResponse]:
     query = db.query(Reporter)
     if site_id:
@@ -130,7 +132,7 @@ def list_reporters_service(
                 whatsapp_link=wa_link,
             )
         )
-    return results
+    return results[offset: offset + limit]
 
 
 def approve_reporter_service(db: Session, reporter_id: int) -> ReporterApproveResponse:
@@ -327,6 +329,7 @@ def flag_site_full_service(
         reporter_name=reporter_name,
         timestamp=now,
         note=flag_in.note,
+        photo_url=flag_in.photo_url,
     )
 
     db.add(db_flag)
@@ -352,6 +355,7 @@ def flag_site_full_service(
             reporter_name=reporter_name,
             site_id=site.id,
             timestamp_str=now.strftime("%d %b %Y, %I:%M %p UTC"),
+            photo_url=flag_in.photo_url,
         )
         if background_tasks:
             background_tasks.add_task(
@@ -369,7 +373,13 @@ def flag_site_full_service(
                 background_tasks.add_task(
                     send_push_notification,
                     device_tokens,
-                    {"type": "site_flagged", "site_id": str(site.id), "site_name": site.name, "at": now.isoformat()},
+                    {
+                        "type": "site_flagged",
+                        "site_id": str(site.id),
+                        "site_name": site.name,
+                        "at": now.isoformat(),
+                        "photo_url": flag_in.photo_url or "",
+                    },
                     f"⚠️ {site.name} Reported Full",
                     f"{reporter_name} flagged this site for immediate clearance.",
                 )
@@ -381,6 +391,7 @@ def flag_site_full_service(
         reporter_name=reporter_name,
         timestamp=db_flag.timestamp,
         note=db_flag.note,
+        photo_url=db_flag.photo_url,
     )
 
 

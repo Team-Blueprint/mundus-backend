@@ -32,12 +32,14 @@ def list_reporters(
     site_id: int | None = Query(None, description="Filter reporters by site ID"),
     status_filter: str | None = Query(None, alias="status", description="Filter by status: pending, approved, rejected, revoked, all"),
     q: str | None = Query(None, description="Search by reporter name or phone"),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List reporter roster (Agency sees tokens & WhatsApp share links; Supervisors see masked tokens)."""
     return reporter_service.list_reporters_service(
-        db, current_user, site_id=site_id, status_filter=status_filter, q=q
+        db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset
     )
 
 

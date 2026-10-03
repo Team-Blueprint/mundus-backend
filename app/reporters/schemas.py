@@ -55,6 +55,7 @@ class ReporterFlagCreate(BaseModel):
     site_id: int
     reporter_token: str | None = None
     note: str | None = None
+    photo_url: str | None = Field(default=None, description="Evidence photo URL from /media/reporter-upload")
 
 
 class ReporterFlagResponse(BaseModel):
@@ -64,5 +65,6 @@ class ReporterFlagResponse(BaseModel):
     reporter_name: str | None = None
     timestamp: datetime
     note: str | None = None
+    photo_url: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
