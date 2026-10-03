@@ -18,18 +18,23 @@ router = APIRouter(tags=["Contractors & Supervisors"])
 
 # --- Agency Contractor Directory ---
 
-@router.get("/contractors", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
+@router.get("/contractors/all", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
 def list_contractors(
     q: str | None = Query(None, description="Search by contractor name or supervisor"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by status: critical, overdue, all"),
+    status_filter: str | None = Query(None, alias="status", description="Filter: critical, overdue, on_schedule, all"),
+    needs_attention: bool = Query(False, description="True = only contractors with overdue or critical sites"),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
 ):
     """List contractors with site counts and overdue indicators (Agency view & assignment dropdowns)."""
-    return contractor_service.list_contractors_service(db, q=q, status_filter=status_filter)
+    return contractor_service.list_contractors_service(
+        db, q=q, status_filter=status_filter, needs_attention=needs_attention, limit=limit, offset=offset
+    )
 
 
-@router.post("/contractors", response_model=ContractorResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/contractors/new", response_model=ContractorResponse, status_code=status.HTTP_201_CREATED)
 def create_contractor(
     data: ContractorCreate,
     db: Session = Depends(get_db),
@@ -53,13 +58,16 @@ def get_supervisor_sites(
 @router.get("/contractor/submissions", response_model=list[SubmissionPairResponse], status_code=status.HTTP_200_OK)
 def get_supervisor_submissions(
     site_id: int | None = Query(None, description="Filter submissions by site ID"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by complete, in_progress, partial, all"),
+    status_filter: str | None = Query(None, alias="status", description="Filter: complete, pending, flagged, all"),
+    q: str | None = Query(None, description="Search by site name substring"),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.SUPERVISOR])),
 ):
     """Supervisor check-in history grouped by site and calendar day into before/after clearance pairs."""
     return contractor_service.get_supervisor_submissions_service(
-        db, current_user, site_id=site_id, status_filter=status_filter
+        db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset
     )
 
 

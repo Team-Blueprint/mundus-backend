@@ -65,13 +65,19 @@ def create_contractor_service(db: Session, data: ContractorCreate) -> Contractor
     )
 
 
-def list_contractors_service(db: Session, q: str | None = None, status_filter: str | None = None) -> list[ContractorResponse]:
+def list_contractors_service(
+    db: Session,
+    q: str | None = None,
+    status_filter: str | None = None,
+    needs_attention: bool = False,
+    limit: int = 10,
+    offset: int = 0,
+) -> list[ContractorResponse]:
     contractors = db.query(Contractor).all()
     all_sites = db.query(DumpPoint).all()
     now = datetime.now(timezone.utc)
 
     # Build contractor metrics lookup
-    # Matches either by contractor name or assigned_contractor_id or supervisor_id
     contractor_sites_map: dict[int, list[DumpPoint]] = {c.id: [] for c in contractors}
 
     for site in all_sites:
@@ -105,19 +111,27 @@ def list_contractors_service(db: Session, q: str | None = None, status_filter: s
             else:
                 critical_count += 1
 
-        # Apply search query filter if provided
+        on_schedule_count = max(0, site_count - overdue_count - critical_count)
+
+        # Apply search query filter
         if q:
             query = q.lower()
             if not (query in c.name.lower() or query in c.supervisor_name.lower() or query in c.supervisor_email.lower()):
                 continue
 
-        # Apply status filter if provided
-        if status_filter:
+        # Apply status filter
+        if status_filter and status_filter.lower() not in ("all", ""):
             sf = status_filter.lower()
             if sf == "critical" and critical_count == 0:
                 continue
             elif sf == "overdue" and overdue_count == 0:
                 continue
+            elif sf == "on_schedule" and on_schedule_count == 0:
+                continue
+
+        # needs_attention=true means at least one overdue or critical site
+        if needs_attention and (overdue_count + critical_count) == 0:
+            continue
 
         results.append(
             ContractorResponse(
@@ -128,11 +142,14 @@ def list_contractors_service(db: Session, q: str | None = None, status_filter: s
                 site_count=site_count,
                 overdue=overdue_count,
                 critical=critical_count,
+                on_schedule=on_schedule_count,
                 created_at=c.created_at,
             )
         )
 
-    return results
+    # Default sort: critical desc
+    results.sort(key=lambda r: r.critical, reverse=True)
+    return results[offset: offset + limit]
 
 
 def get_supervisor_sites_service(db: Session, current_user: User) -> list[DumpPointResponse]:
@@ -145,8 +162,12 @@ def get_supervisor_submissions_service(
     current_user: User,
     site_id: int | None = None,
     status_filter: str | None = None,
+    q: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
 ) -> list[SubmissionPairResponse]:
     """Groups supervisor submissions into before/after clearance pairs by site and date."""
+    from app.check_ins.models import CheckInStatus
     query = db.query(CheckIn).filter(CheckIn.supervisor_id == current_user.id)
     if site_id:
         query = query.filter(CheckIn.site_id == site_id)
@@ -166,24 +187,36 @@ def get_supervisor_submissions_service(
                 "site_name": site_name,
                 "before": None,
                 "after": None,
+                "has_flag": False,
             }
 
         ci_dto = CheckInResponse.model_validate(ci)
         if ci.type == CheckInType.BEFORE and groups[key]["before"] is None:
             groups[key]["before"] = ci_dto
+            # Check if this check-in itself was flagged
+            if hasattr(ci, "status") and ci.status in (CheckInStatus.FLAGGED, CheckInStatus.LOCATION_MISMATCH):
+                groups[key]["has_flag"] = True
         elif ci.type == CheckInType.AFTER and groups[key]["after"] is None:
             groups[key]["after"] = ci_dto
 
     results = []
     for (s_id, d_str), data in groups.items():
+        # Map to frontend status enum: complete | pending | flagged
         if data["before"] and data["after"]:
             pair_status = "complete"
+        elif data["has_flag"]:
+            pair_status = "flagged"
         elif data["before"]:
-            pair_status = "in_progress"
+            pair_status = "pending"  # after missing (was "in_progress")
         else:
-            pair_status = "partial"
+            pair_status = "pending"
 
-        if status_filter and status_filter.lower() != "all" and pair_status != status_filter.lower():
+        # Apply site-name search
+        if q and q.lower() not in data["site_name"].lower():
+            continue
+
+        sf = (status_filter or "").lower()
+        if sf and sf != "all" and pair_status != sf:
             continue
 
         results.append(
@@ -198,7 +231,7 @@ def get_supervisor_submissions_service(
         )
 
     results.sort(key=lambda x: x.date, reverse=True)
-    return results
+    return results[offset: offset + limit]
 
 
 def get_contractor_alerts_service(db: Session, current_user: User) -> list[ContractorAlertResponse]:
