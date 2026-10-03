@@ -48,9 +48,13 @@ def get_agency_dashboard(
     db: Session,
     status_filter: str | None = None,
     search_query: str | None = None,
+    contractor_filter: str | None = None,
+    overdue_only: bool = False,
+    limit: int = 10,
+    offset: int = 0,
 ) -> DashboardSummaryResponse:
     admin_context = User(id=0, role=UserRole.AGENCY)
-    all_sites = list_dump_points(db, admin_context)
+    all_sites = list_dump_points(db, admin_context, limit=10000)  # unfiltered for stats
 
     total_sites = len(all_sites)
     on_schedule_count = sum(1 for s in all_sites if s.status == "on_schedule")
@@ -61,10 +65,28 @@ def get_agency_dashboard(
     contractor_ids = {s.assigned_contractor_id for s in all_sites if s.assigned_contractor_id}
     total_contractors = max(len(contractor_ids), len(CONTRACTOR_MAP))
 
-    # Apply filtering for the returned sites array
+    # Resolve effective status_filter for overdue_only
+    effective_status = status_filter
+    if overdue_only and not effective_status:
+        effective_status = "overdue"  # treated as overdue+critical in list_dump_points
+
     filtered_sites = list_dump_points(
-        db, admin_context, status_filter=status_filter, search_query=search_query
+        db, admin_context,
+        status_filter=effective_status,
+        search_query=search_query,
+        limit=limit,
+        offset=offset,
     )
+
+    # Apply contractor name/id substring filter post-pagination if specified
+    if contractor_filter:
+        cf = contractor_filter.lower()
+        filtered_sites = [
+            s for s in filtered_sites
+            if (s.assigned_contractor_name and cf in s.assigned_contractor_name.lower())
+            or (s.assigned_contractor_id and cf in s.assigned_contractor_id.lower())
+        ]
+
     return DashboardSummaryResponse(
         total_sites=total_sites,
         total_contractors=total_contractors,

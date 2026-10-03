@@ -25,13 +25,25 @@ def get_dashboard_stats(
 
 @router.get("/sites", response_model=DashboardSummaryResponse, status_code=status.HTTP_200_OK)
 def get_dashboard_sites(
-    status_filter: str | None = Query(None, alias="status", description="Filter by status: critical, overdue, on_schedule, flagged, all"),
-    search: str | None = Query(None, description="Search by site name, contractor, or supervisor"),
+    status_filter: str | None = Query(None, alias="status", description="Filter: critical, overdue, on_schedule, flagged, all"),
+    search: str | None = Query(None, alias="q", description="Search by site name, contractor, or supervisor"),
+    contractor: str | None = Query(None, description="Filter by contractor name/ID"),
+    overdue_only: bool = Query(False, description="True = only overdue + critical sites"),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
 ):
-    """Retrieve all dump point sites sorted by days since clearance (descending) with overdue red flags (Agency view only)."""
-    return dashboard_service.get_agency_dashboard(db, status_filter=status_filter, search_query=search)
+    """Retrieve all dump point sites sorted by days since clearance (descending) with overdue red flags."""
+    return dashboard_service.get_agency_dashboard(
+        db,
+        status_filter=status_filter,
+        search_query=search,
+        contractor_filter=contractor,
+        overdue_only=overdue_only,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/contractors", response_model=ContractorDashboardResponse, status_code=status.HTTP_200_OK)
