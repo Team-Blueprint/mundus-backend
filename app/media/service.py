@@ -21,7 +21,7 @@ def compute_photo_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-async def upload_photo_service(file: UploadFile) -> dict:
+async def upload_photo_service(file: UploadFile, folder: str = "mundus_checkins") -> dict:
     if not file.content_type or not file.content_type.startswith("image/"):
         raise MundusException(
             message="Only image files (e.g., JPEG, PNG) are allowed.",
@@ -43,7 +43,7 @@ async def upload_photo_service(file: UploadFile) -> dict:
         try:
             upload_result = cloudinary.uploader.upload(
                 content,
-                folder="mundus_checkins",
+                folder=folder,
                 resource_type="image",
             )
             photo_url = upload_result.get("secure_url") or upload_result.get("url")
@@ -54,7 +54,7 @@ async def upload_photo_service(file: UploadFile) -> dict:
             )
     else:
         # Development / fallback mock URL when Cloudinary keys are not yet set
-        photo_url = f"https://res.cloudinary.com/mundus-demo/image/upload/v1/checkins/{photo_hash[:16]}.jpg"
+        photo_url = f"https://res.cloudinary.com/mundus-demo/image/upload/v1/{folder}/{photo_hash[:16]}.jpg"
 
     return {
         "photo_url": photo_url,
