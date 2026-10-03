@@ -1,8 +1,17 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.models import User
-from app.auth.schemas import LoginRequest, Token, UserCreate, UserResponse, RefreshTokenRequest
+from app.auth.schemas import (
+    LoginRequest,
+    Token,
+    UserCreate,
+    UserResponse,
+    RefreshTokenRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageResponse,
+)
 from app.auth.deps import get_current_user
 import app.auth.service as auth_service
 
@@ -31,5 +40,33 @@ def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends(get_d
 def get_me(current_user: User = Depends(get_current_user)):
     """Get current authenticated user details."""
     return current_user
+
+
+@router.post("/forgot-password", response_model=MessageResponse, status_code=status.HTTP_200_OK)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+
+    client_ip = request.client.host if request.client else "unknown"
+    return await auth_service.forgot_password_service(
+        db, payload.email, client_ip, background_tasks=background_tasks
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse, status_code=status.HTTP_200_OK)
+def reset_password(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+
+    return auth_service.reset_password_service(
+        db=db,
+        email=payload.email,
+        otp=payload.otp,
+        new_password=payload.new_password,
+    )
 
 

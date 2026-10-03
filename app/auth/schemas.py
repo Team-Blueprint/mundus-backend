@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from app.auth.models import UserRole
 
 
@@ -40,4 +40,19 @@ class RefreshTokenRequest(BaseModel):
 class TokenPayload(BaseModel):
     sub: str | None = None
     role: str | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str = Field(..., min_length=6, description="Minimum 6 characters")
+
+
+class MessageResponse(BaseModel):
+    message: str
+
 
