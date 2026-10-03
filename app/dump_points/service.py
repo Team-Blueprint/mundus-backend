@@ -66,6 +66,8 @@ def list_dump_points(
     current_user: User,
     status_filter: str | None = None,
     search_query: str | None = None,
+    limit: int = 10000,
+    offset: int = 0,
 ) -> list[DumpPointResponse]:
     query = db.query(DumpPoint)
     if current_user.role == UserRole.SUPERVISOR:
@@ -110,7 +112,7 @@ def list_dump_points(
         key=lambda r: r.days_since_last_clearance if r.days_since_last_clearance is not None else float("inf"),
         reverse=True,
     )
-    return results
+    return results[offset : offset + limit]
 
 
 def get_dump_point_by_id(db: Session, dump_point_id: int, current_user: User = None) -> DumpPointResponse:
