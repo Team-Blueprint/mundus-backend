@@ -13,7 +13,7 @@ from app.contractors.schemas import (
 from app.dump_points.schemas import DumpPointResponse
 import app.contractors.service as contractor_service
 
-router = APIRouter(tags=["Contractors & Supervisors"])
+router = APIRouter(tags=["Contractors"])
 
 
 # --- Agency Contractor Directory ---
@@ -26,11 +26,11 @@ def list_contractors(
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.AGENCY])),
+    current_user: User = Depends(require_role([UserRole.AGENCY, UserRole.CONTRACTOR])),
 ):
     """List contractors with site counts and overdue indicators (Agency view & assignment dropdowns)."""
     return contractor_service.list_contractors_service(
-        db, q=q, status_filter=status_filter, needs_attention=needs_attention, limit=limit, offset=offset
+        db, q=q, status_filter=status_filter, needs_attention=needs_attention, limit=limit, offset=offset, current_user=current_user
     )
 
 
@@ -49,7 +49,7 @@ def create_contractor(
 @router.get("/contractor/sites", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 def get_supervisor_sites(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.SUPERVISOR])),
+    current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
     """Retrieve assigned dump points for the logged-in supervisor, sorted most overdue first."""
     return contractor_service.get_supervisor_sites_service(db, current_user)
@@ -57,13 +57,13 @@ def get_supervisor_sites(
 
 @router.get("/contractor/submissions", response_model=list[SubmissionPairResponse], status_code=status.HTTP_200_OK)
 def get_supervisor_submissions(
-    site_id: int | None = Query(None, description="Filter submissions by site ID"),
+    site_id: str | None = Query(None, description="Filter submissions by site ID"),
     status_filter: str | None = Query(None, alias="status", description="Filter: complete, pending, flagged, all"),
     q: str | None = Query(None, description="Search by site name substring"),
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.SUPERVISOR])),
+    current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
     """Supervisor check-in history grouped by site and calendar day into before/after clearance pairs."""
     return contractor_service.get_supervisor_submissions_service(
@@ -74,7 +74,7 @@ def get_supervisor_submissions(
 @router.get("/contractor/alerts", response_model=list[ContractorAlertResponse], status_code=status.HTTP_200_OK)
 def get_contractor_alerts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.SUPERVISOR, UserRole.AGENCY])),
+    current_user: User = Depends(require_role([UserRole.CONTRACTOR, UserRole.AGENCY])),
 ):
     """Retrieve active site full alerts for supervisor assigned dump points."""
     return contractor_service.get_contractor_alerts_service(db, current_user)
@@ -82,9 +82,9 @@ def get_contractor_alerts(
 
 @router.post("/contractor/alerts/{site_id}/seen", status_code=status.HTTP_200_OK)
 def mark_alert_seen(
-    site_id: int,
+    site_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.SUPERVISOR, UserRole.AGENCY])),
+    current_user: User = Depends(require_role([UserRole.CONTRACTOR, UserRole.AGENCY])),
 ):
     """Dismiss or mark 'reported full' banner alerts as seen for a site."""
     return contractor_service.mark_contractor_alert_seen_service(db, site_id, current_user)

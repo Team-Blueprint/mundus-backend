@@ -6,19 +6,18 @@ from app.check_ins.schemas import CheckInResponse
 
 class ContractorCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
-    supervisor_name: str = Field(..., min_length=2, max_length=255)
-    supervisor_email: EmailStr
+    email: EmailStr
     password: str = Field(..., min_length=6)
 
 
 class ContractorResponse(BaseModel):
-    id: int
+    id: str
     name: str
-    supervisor_name: str
-    supervisor_email: str
+    email: str
     site_count: int = 0
     overdue: int = 0
     critical: int = 0
+    on_schedule: int = 0
     created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -33,7 +32,7 @@ class PasswordChangeRequest(BaseModel):
 
 class ContractorAlertResponse(BaseModel):
     id: int
-    site_id: int
+    site_id: str
     site_name: str | None = None
     message: str
     is_seen: bool
@@ -44,7 +43,7 @@ class ContractorAlertResponse(BaseModel):
 
 class SubmissionPairResponse(BaseModel):
     date: str
-    site_id: int
+    site_id: str
     site_name: str
     before: CheckInResponse | None = None
     after: CheckInResponse | None = None

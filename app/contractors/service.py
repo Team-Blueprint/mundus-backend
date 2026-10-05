@@ -13,6 +13,8 @@ from app.core.security import get_password_hash, verify_password
 from app.core.exceptions import MundusException, EntityNotFoundException
 
 
+import uuid
+
 def create_contractor_service(db: Session, data: ContractorCreate) -> ContractorResponse:
     # 1. Validate unique contractor name
     existing_contractor = db.query(Contractor).filter(Contractor.name == data.name.strip()).first()
@@ -22,32 +24,32 @@ def create_contractor_service(db: Session, data: ContractorCreate) -> Contractor
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # 2. Validate unique supervisor email
-    existing_user = db.query(User).filter(User.email == data.supervisor_email.strip().lower()).first()
+    # 2. Validate unique email
+    existing_user = db.query(User).filter(User.email == data.email.strip().lower()).first()
     if existing_user:
         raise MundusException(
-            message=f"An account with email '{data.supervisor_email}' already exists.",
+            message=f"An account with email '{data.email}' already exists.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # 3. Create supervisor User
-    supervisor_user = User(
-        email=data.supervisor_email.strip().lower(),
+    # 3. Create contractor User
+    contractor_user = User(
+        email=data.email.strip().lower(),
         hashed_password=get_password_hash(data.password),
-        full_name=data.supervisor_name.strip(),
-        role=UserRole.SUPERVISOR,
+        full_name=data.name.strip(),
+        role=UserRole.CONTRACTOR,
         is_active=True,
     )
-    db.add(supervisor_user)
+    db.add(contractor_user)
     db.commit()
-    db.refresh(supervisor_user)
+    db.refresh(contractor_user)
 
     # 4. Create Contractor record
     contractor = Contractor(
+        id=uuid.uuid4().hex,
         name=data.name.strip(),
-        supervisor_name=data.supervisor_name.strip(),
-        supervisor_email=data.supervisor_email.strip().lower(),
-        supervisor_user_id=supervisor_user.id,
+        email=data.email.strip().lower(),
+        user_id=contractor_user.id,
     )
     db.add(contractor)
     db.commit()
@@ -56,11 +58,11 @@ def create_contractor_service(db: Session, data: ContractorCreate) -> Contractor
     return ContractorResponse(
         id=contractor.id,
         name=contractor.name,
-        supervisor_name=contractor.supervisor_name,
-        supervisor_email=contractor.supervisor_email,
+        email=contractor.email,
         site_count=0,
         overdue=0,
         critical=0,
+        on_schedule=0,
         created_at=contractor.created_at,
     )
 
@@ -72,24 +74,21 @@ def list_contractors_service(
     needs_attention: bool = False,
     limit: int = 10,
     offset: int = 0,
+    current_user: User | None = None,
 ) -> list[ContractorResponse]:
-    contractors = db.query(Contractor).all()
+    query = db.query(Contractor)
+    if current_user and current_user.role == UserRole.CONTRACTOR:
+        query = query.filter(Contractor.user_id == current_user.id)
+    contractors = query.all()
     all_sites = db.query(DumpPoint).all()
     now = datetime.now(timezone.utc)
 
     # Build contractor metrics lookup
-    contractor_sites_map: dict[int, list[DumpPoint]] = {c.id: [] for c in contractors}
+    contractor_sites_map: dict[str, list[DumpPoint]] = {c.id: [] for c in contractors}
 
     for site in all_sites:
-        for c in contractors:
-            if (
-                site.assigned_contractor_id == c.name
-                or site.assigned_contractor_id == f"CTR-AK-00{c.id}"
-                or site.assigned_contractor_id == str(c.id)
-                or (site.assigned_supervisor_id and site.assigned_supervisor_id == c.supervisor_user_id)
-            ):
-                contractor_sites_map[c.id].append(site)
-                break
+        if site.assigned_contractor_id and site.assigned_contractor_id in contractor_sites_map:
+            contractor_sites_map[site.assigned_contractor_id].append(site)
 
     results = []
     for c in contractors:
@@ -116,7 +115,7 @@ def list_contractors_service(
         # Apply search query filter
         if q:
             query = q.lower()
-            if not (query in c.name.lower() or query in c.supervisor_name.lower() or query in c.supervisor_email.lower()):
+            if not (query in c.name.lower() or query in c.email.lower()):
                 continue
 
         # Apply status filter
@@ -137,8 +136,7 @@ def list_contractors_service(
             ContractorResponse(
                 id=c.id,
                 name=c.name,
-                supervisor_name=c.supervisor_name,
-                supervisor_email=c.supervisor_email,
+                email=c.email,
                 site_count=site_count,
                 overdue=overdue_count,
                 critical=critical_count,
@@ -160,22 +158,22 @@ def get_supervisor_sites_service(db: Session, current_user: User) -> list[DumpPo
 def get_supervisor_submissions_service(
     db: Session,
     current_user: User,
-    site_id: int | None = None,
+    site_id: str | None = None,
     status_filter: str | None = None,
     q: str | None = None,
     limit: int = 10,
     offset: int = 0,
 ) -> list[SubmissionPairResponse]:
-    """Groups supervisor submissions into before/after clearance pairs by site and date."""
+    """Groups contractor submissions into before/after clearance pairs by site and date."""
     from app.check_ins.models import CheckInStatus
-    query = db.query(CheckIn).filter(CheckIn.supervisor_id == current_user.id)
+    query = db.query(CheckIn).filter(CheckIn.user_id == current_user.id)
     if site_id:
         query = query.filter(CheckIn.site_id == site_id)
 
     check_ins = query.order_by(CheckIn.server_timestamp.desc()).all()
 
     # Group by site_id and day (YYYY-MM-DD)
-    groups: dict[tuple[int, str], dict] = {}
+    groups: dict[tuple[str, str], dict] = {}
     for ci in check_ins:
         date_str = ci.server_timestamp.strftime("%Y-%m-%d")
         key = (ci.site_id, date_str)
@@ -235,8 +233,11 @@ def get_supervisor_submissions_service(
 
 
 def get_contractor_alerts_service(db: Session, current_user: User) -> list[ContractorAlertResponse]:
-    # Find supervisor assigned sites
-    assigned_site_ids = [s.id for s in db.query(DumpPoint).filter(DumpPoint.assigned_supervisor_id == current_user.id).all()]
+    # Find contractor assigned sites
+    contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+    if not contractor:
+        return []
+    assigned_site_ids = [s.id for s in db.query(DumpPoint).filter(DumpPoint.assigned_contractor_id == contractor.id).all()]
     if not assigned_site_ids:
         return []
 
@@ -263,7 +264,7 @@ def get_contractor_alerts_service(db: Session, current_user: User) -> list[Contr
     return results
 
 
-def mark_contractor_alert_seen_service(db: Session, site_id: int, current_user: User) -> dict:
+def mark_contractor_alert_seen_service(db: Session, site_id: str, current_user: User) -> dict:
     alerts = (
         db.query(ContractorAlert)
         .filter(ContractorAlert.site_id == site_id)
