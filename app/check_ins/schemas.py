@@ -4,7 +4,7 @@ from app.check_ins.models import CheckInType, CheckInStatus
 
 
 class CheckInCreate(BaseModel):
-    site_id: int
+    site_id: str
     type: CheckInType
     photo_url: str
     photo_hash: str
@@ -15,8 +15,8 @@ class CheckInCreate(BaseModel):
 
 class CheckInResponse(BaseModel):
     id: int
-    site_id: int
-    supervisor_id: int
+    site_id: str
+    user_id: int
     type: CheckInType
     photo_url: str
     photo_hash: str

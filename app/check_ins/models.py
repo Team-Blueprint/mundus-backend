@@ -20,8 +20,8 @@ class CheckIn(Base):
     __tablename__ = "check_ins"
 
     id = Column(Integer, primary_key=True, index=True)
-    site_id = Column(Integer, ForeignKey("dump_points.id"), nullable=False, index=True)
-    supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    site_id = Column(String(36), ForeignKey("dump_points.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     type = Column(Enum(CheckInType), nullable=False)
     photo_url = Column(String(500), nullable=False)
     photo_hash = Column(String(64), nullable=False, index=True)
@@ -34,5 +34,5 @@ class CheckIn(Base):
     flags = Column(JSON, default=list, nullable=False)
 
     site = relationship("DumpPoint", back_populates="check_ins")
-    supervisor = relationship("User", foreign_keys=[supervisor_id])
+    user = relationship("User", foreign_keys=[user_id])
 

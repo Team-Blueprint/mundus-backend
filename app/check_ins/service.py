@@ -29,9 +29,12 @@ def submit_check_in_service(db: Session, check_in_in: CheckInCreate, current_use
     if not site:
         raise EntityNotFoundException("DumpPoint", check_in_in.site_id)
 
-    # 2. Supervisor scoping check
-    if current_user.role == UserRole.SUPERVISOR and site.assigned_supervisor_id != current_user.id:
-        raise PermissionDeniedException("Supervisors can only submit check-ins for their assigned dump points.")
+    # 2. Contractor scoping check
+    if current_user.role == UserRole.CONTRACTOR:
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+        if not contractor or site.assigned_contractor_id != contractor.id:
+            raise PermissionDeniedException("Contractors can only submit check-ins for their assigned dump points.")
 
     # 3. Calculate Haversine geofence distance
     distance_meters = calculate_haversine_distance(
@@ -69,7 +72,7 @@ def submit_check_in_service(db: Session, check_in_in: CheckInCreate, current_use
     # Save check-in record
     check_in_db = CheckIn(
         site_id=check_in_in.site_id,
-        supervisor_id=current_user.id,
+        user_id=current_user.id,
         type=check_in_in.type,
         photo_url=check_in_in.photo_url,
         photo_hash=check_in_in.photo_hash,
@@ -94,13 +97,16 @@ def submit_check_in_service(db: Session, check_in_in: CheckInCreate, current_use
     return CheckInResponse.model_validate(check_in_db)
 
 
-def list_site_check_ins(db: Session, site_id: int, current_user: User) -> list[CheckInResponse]:
+def list_site_check_ins(db: Session, site_id: str, current_user: User) -> list[CheckInResponse]:
     site = db.query(DumpPoint).filter(DumpPoint.id == site_id).first()
     if not site:
         raise EntityNotFoundException("DumpPoint", site_id)
 
-    if current_user.role == UserRole.SUPERVISOR and site.assigned_supervisor_id != current_user.id:
-        raise PermissionDeniedException("Supervisors can only view check-ins for their assigned sites.")
+    if current_user.role == UserRole.CONTRACTOR:
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+        if not contractor or site.assigned_contractor_id != contractor.id:
+            raise PermissionDeniedException("Contractors can only view check-ins for their assigned sites.")
 
     check_ins = db.query(CheckIn).filter(CheckIn.site_id == site_id).order_by(CheckIn.server_timestamp.desc()).all()
     return [CheckInResponse.model_validate(ci) for ci in check_ins]
@@ -108,20 +114,23 @@ def list_site_check_ins(db: Session, site_id: int, current_user: User) -> list[C
 
 def list_all_check_ins(db: Session, current_user: User) -> list[CheckInResponse]:
     query = db.query(CheckIn)
-    if current_user.role == UserRole.SUPERVISOR:
-        query = query.filter(CheckIn.supervisor_id == current_user.id)
+    if current_user.role == UserRole.CONTRACTOR:
+        query = query.filter(CheckIn.user_id == current_user.id)
 
     check_ins = query.order_by(CheckIn.server_timestamp.desc()).all()
     return [CheckInResponse.model_validate(ci) for ci in check_ins]
 
 
-def get_site_photo_pairings_service(db: Session, site_id: int, current_user: User) -> CheckInPairingResponse:
+def get_site_photo_pairings_service(db: Session, site_id: str, current_user: User) -> CheckInPairingResponse:
     site = db.query(DumpPoint).filter(DumpPoint.id == site_id).first()
     if not site:
         raise EntityNotFoundException("DumpPoint", site_id)
 
-    if current_user.role == UserRole.SUPERVISOR and site.assigned_supervisor_id != current_user.id:
-        raise PermissionDeniedException("Supervisors can only view photo pairings for their assigned sites.")
+    if current_user.role == UserRole.CONTRACTOR:
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+        if not contractor or site.assigned_contractor_id != contractor.id:
+            raise PermissionDeniedException("Contractors can only view photo pairings for their assigned sites.")
 
     latest_before = (
         db.query(CheckIn)
