@@ -6,17 +6,25 @@ from app.auth.models import UserRole
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str | None = None
-    role: UserRole = UserRole.SUPERVISOR
+    role: UserRole = UserRole.CONTRACTOR
 
 
 class UserCreate(UserBase):
     password: str
 
 
+class ContractorSummary(BaseModel):
+    id: str
+    name: str
+    email: str
+
 class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+    contractor: ContractorSummary | None = None
+    contractor_id: str | None = None
+    contractor_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

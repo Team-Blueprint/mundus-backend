@@ -42,14 +42,30 @@ def get_user_by_id(db: Session, user_id: int) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
 
 
-def generate_tokens_for_user(user: User) -> Token:
+def generate_tokens_for_user(db: Session, user: User) -> Token:
     access_token = create_access_token(subject=user.id, role=user.role.value)
     refresh_token = create_refresh_token(subject=user.id, role=user.role.value)
+    
+    user_resp = UserResponse.model_validate(user)
+    
+    if user.role.value == "contractor":
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == user.id).first()
+        if contractor:
+            from app.auth.schemas import ContractorSummary
+            user_resp.contractor = ContractorSummary(
+                id=contractor.id,
+                name=contractor.name,
+                email=contractor.email
+            )
+            user_resp.contractor_id = contractor.id
+            user_resp.contractor_name = contractor.name
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        user=UserResponse.model_validate(user),
+        user=user_resp,
     )
 
 
@@ -76,15 +92,15 @@ def create_user(db: Session, user_in: UserCreate) -> User:
 
 def register_service(db: Session, user_in: UserCreate) -> Token:
     from app.auth.models import UserRole as _UserRole
-    # Security: self-service register only creates SUPERVISOR accounts
-    if user_in.role and user_in.role != _UserRole.SUPERVISOR:
+    # Security: self-service register only creates CONTRACTOR accounts
+    if user_in.role and user_in.role != _UserRole.CONTRACTOR:
         raise MundusException(
-            message="Self-registration is only available for supervisor accounts.",
+            message="Self-registration is only available for contractor accounts.",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    user_in_copy = user_in.model_copy(update={"role": _UserRole.SUPERVISOR})
+    user_in_copy = user_in.model_copy(update={"role": _UserRole.CONTRACTOR})
     user = create_user(db, user_in_copy)
-    return generate_tokens_for_user(user)
+    return generate_tokens_for_user(db, user)
 
 
 def authenticate_user(db: Session, login_data: LoginRequest) -> User:
@@ -109,7 +125,7 @@ def authenticate_user(db: Session, login_data: LoginRequest) -> User:
 
 def login_service(db: Session, login_data: LoginRequest) -> Token:
     user = authenticate_user(db, login_data)
-    return generate_tokens_for_user(user)
+    return generate_tokens_for_user(db, user)
 
 
 def refresh_token_service(db: Session, refresh_token: str) -> Token:
@@ -135,7 +151,7 @@ def refresh_token_service(db: Session, refresh_token: str) -> Token:
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    return generate_tokens_for_user(user)
+    return generate_tokens_for_user(db, user)
 
 
 # ---------------------------------------------------------------------------
