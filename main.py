@@ -23,40 +23,41 @@ from sqlalchemy import text
 async def lifespan(app: FastAPI):
     # Ensure all tables exist on startup
     Base.metadata.create_all(bind=engine)
-    try:
-        with engine.connect() as conn:
-            cursor = conn.connection.cursor()
-            cursor.execute("PRAGMA table_info(dump_points);")
-            dp_cols = [row[1] for row in cursor.fetchall()]
-            if "code" not in dp_cols:
-                conn.execute(text("ALTER TABLE dump_points ADD COLUMN code VARCHAR(50);"))
-                conn.commit()
-            if "sector" not in dp_cols:
-                conn.execute(text("ALTER TABLE dump_points ADD COLUMN sector VARCHAR(100);"))
-                conn.commit()
+    if engine.dialect.name == "sqlite":
+        try:
+            with engine.connect() as conn:
+                cursor = conn.connection.cursor()
+                cursor.execute("PRAGMA table_info(dump_points);")
+                dp_cols = [row[1] for row in cursor.fetchall()]
+                if "code" not in dp_cols:
+                    conn.execute(text("ALTER TABLE dump_points ADD COLUMN code VARCHAR(50);"))
+                    conn.commit()
+                if "sector" not in dp_cols:
+                    conn.execute(text("ALTER TABLE dump_points ADD COLUMN sector VARCHAR(100);"))
+                    conn.commit()
 
-            cursor.execute("PRAGMA table_info(reporter_flags);")
-            rf_cols = [row[1] for row in cursor.fetchall()]
-            if "reporter_community_id" not in rf_cols:
-                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_community_id INTEGER;"))
-                conn.commit()
-            if "reporter_name" not in rf_cols:
-                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_name VARCHAR(255);"))
-                conn.commit()
-            if "photo_url" not in rf_cols:
-                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN photo_url VARCHAR(500);"))
-                conn.commit()
+                cursor.execute("PRAGMA table_info(reporter_flags);")
+                rf_cols = [row[1] for row in cursor.fetchall()]
+                if "reporter_community_id" not in rf_cols:
+                    conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_community_id INTEGER;"))
+                    conn.commit()
+                if "reporter_name" not in rf_cols:
+                    conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_name VARCHAR(255);"))
+                    conn.commit()
+                if "photo_url" not in rf_cols:
+                    conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN photo_url VARCHAR(500);"))
+                    conn.commit()
 
-            cursor.execute("PRAGMA table_info(users);")
-            user_cols = [row[1] for row in cursor.fetchall()]
-            if "is_agency_staff" not in user_cols:
-                conn.execute(text("ALTER TABLE users ADD COLUMN is_agency_staff BOOLEAN NOT NULL DEFAULT 0;"))
-                conn.commit()
-            if "invited_by_id" not in user_cols:
-                conn.execute(text("ALTER TABLE users ADD COLUMN invited_by_id INTEGER;"))
-                conn.commit()
-    except Exception as e:
-        logger.warning(f"Lifespan migration check notice: {e}")
+                cursor.execute("PRAGMA table_info(users);")
+                user_cols = [row[1] for row in cursor.fetchall()]
+                if "is_agency_staff" not in user_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_agency_staff BOOLEAN NOT NULL DEFAULT 0;"))
+                    conn.commit()
+                if "invited_by_id" not in user_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN invited_by_id INTEGER;"))
+                    conn.commit()
+        except Exception as e:
+            logger.warning(f"Lifespan migration check notice: {e}")
     yield
 
 

@@ -18,8 +18,8 @@ def test_contractors_crud_and_supervisor_workflow():
     unique_suffix = uuid.uuid4().hex[:6]
     contractor_payload = {
         "name": f"Delta Cleaners {unique_suffix}",
-        "supervisor_name": f"Kufre Jackson {unique_suffix}",
-        "supervisor_email": f"kufre_{unique_suffix}@deltaclean.ng",
+        "name": f"Kufre Jackson {unique_suffix}",
+        "email": f"kufre_{unique_suffix}@deltaclean.ng",
         "password": "Password123!",
     }
 
@@ -27,7 +27,7 @@ def test_contractors_crud_and_supervisor_workflow():
     assert create_resp.status_code == 201
     contractor = create_resp.json()
     assert contractor["name"] == contractor_payload["name"]
-    assert contractor["supervisor_email"] == contractor_payload["supervisor_email"]
+    assert contractor["email"] == contractor_payload["email"]
 
     # 2. List contractors
     list_resp = client.get("/contractors", headers=agency_headers)
@@ -37,7 +37,7 @@ def test_contractors_crud_and_supervisor_workflow():
     # 3. Login as new supervisor
     sup_login_resp = client.post(
         "/auth/login",
-        json={"email": contractor_payload["supervisor_email"], "password": "Password123!"},
+        json={"email": contractor_payload["email"], "password": "Password123!"},
     )
     assert sup_login_resp.status_code == 200
     sup_token = sup_login_resp.json()["access_token"]
@@ -73,7 +73,7 @@ def test_reporter_nominate_approve_and_public_flag():
     phone = f"080{uuid.uuid4().int % 100000000:08d}"
     nominate_payload = {
         "site_id": site_id,
-        "contractor_id": 1,
+        "contractor_id": "CTR-AK-003",
         "name": "Jane Ukpong",
         "phone": phone,
     }
@@ -171,7 +171,7 @@ def test_device_registration_and_alerts():
     reg_resp = client.post(
         "/devices/register",
         headers=sup_headers,
-        json={"fcm_token": f"fcm_test_token_{uuid.uuid4().hex[:8]}", "role": "supervisor"},
+        json={"fcm_token": f"fcm_test_token_{uuid.uuid4().hex[:8]}", "role": "contractor"},
     )
     assert reg_resp.status_code == 200
 

@@ -16,7 +16,7 @@ def test_login_success():
     assert "refresh_token" in data
     assert data["token_type"] == "bearer"
     assert data["user"]["email"] == "supervisor@mundus.org"
-    assert data["user"]["role"] == "supervisor"
+    assert data["user"]["role"] == "contractor"
 
 
 def test_login_invalid_password():
@@ -36,7 +36,7 @@ def test_register_returns_tokens():
             "email": unique_email,
             "password": "Password123!",
             "full_name": "New User",
-            "role": "supervisor"
+            "role": "contractor"
         }
     )
     assert response.status_code == 201

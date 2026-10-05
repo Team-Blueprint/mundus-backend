@@ -58,16 +58,16 @@ def test_assign_supervisor():
     )
     site_id = create_resp.json()["id"]
 
-    # Get supervisor user id
+    # Get contractor id
     me_resp = client.get("/auth/me", headers=get_auth_header("supervisor@mundus.org"))
-    supervisor_id = me_resp.json()["id"]
+    contractor_id = me_resp.json()["contractor_id"]
 
-    # Assign supervisor
+    # Assign contractor
     assign_resp = client.put(
         f"/dump-points/{site_id}/assign",
         headers=headers,
-        json={"assigned_supervisor_id": supervisor_id, "assigned_contractor_id": "CTR-AK-003"}
+        json={"assigned_contractor_id": contractor_id}
     )
     assert assign_resp.status_code == 200
-    assert assign_resp.json()["assigned_supervisor_id"] == supervisor_id
+    assert assign_resp.json()["assigned_contractor_id"] == contractor_id
 

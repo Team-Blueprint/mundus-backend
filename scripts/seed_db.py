@@ -1,5 +1,6 @@
 import sys
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 # Ensure project root is in sys.path
@@ -21,40 +22,20 @@ from app.check_ins.models import CheckIn, CheckInType, CheckInStatus
 
 def migrate_db_columns(db: SessionLocal):
     from sqlalchemy import text
+    if engine.dialect.name != "sqlite":
+        return
     try:
         with engine.connect() as conn:
-            cursor = conn.connection.cursor()
-            
-            # 1. dump_points columns
-            cursor.execute("PRAGMA table_info(dump_points);")
-            dp_cols = [row[1] for row in cursor.fetchall()]
-            if "code" not in dp_cols:
-                conn.execute(text("ALTER TABLE dump_points ADD COLUMN code VARCHAR(50);"))
-                conn.commit()
-                print("Migrated dump_points table: added 'code' column.")
-            if "sector" not in dp_cols:
-                conn.execute(text("ALTER TABLE dump_points ADD COLUMN sector VARCHAR(100);"))
-                conn.commit()
-                print("Migrated dump_points table: added 'sector' column.")
-
-            # 2. reporter_flags columns
-            cursor.execute("PRAGMA table_info(reporter_flags);")
-            rf_cols = [row[1] for row in cursor.fetchall()]
-            if "reporter_community_id" not in rf_cols:
-                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_community_id INTEGER;"))
-                conn.commit()
-                print("Migrated reporter_flags table: added 'reporter_community_id' column.")
-            if "reporter_name" not in rf_cols:
-                conn.execute(text("ALTER TABLE reporter_flags ADD COLUMN reporter_name VARCHAR(255);"))
-                conn.commit()
-                print("Migrated reporter_flags table: added 'reporter_name' column.")
+            # Recreate tables or add columns if needed
+            # In a real app we'd use Alembic, but since this is a local seed, we can just rely on Base.metadata.create_all
+            pass
     except Exception as e:
         print(f"Migration check notice: {e}")
 
 
-
 def seed(db: SessionLocal = None):
     print("Creating database tables...")
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
     close_db = False
@@ -69,19 +50,19 @@ def seed(db: SessionLocal = None):
                 "email": "supervisor@mundus.org",
                 "password": "Password123!",
                 "full_name": "Emmanuel Udo",
-                "role": UserRole.SUPERVISOR,
+                "role": UserRole.CONTRACTOR,
             },
             {
                 "email": "blessing@mundus.org",
                 "password": "Password123!",
                 "full_name": "Blessing Akpan",
-                "role": UserRole.SUPERVISOR,
+                "role": UserRole.CONTRACTOR,
             },
             {
                 "email": "bassey@mundus.org",
                 "password": "Password123!",
                 "full_name": "Bassey Okon",
-                "role": UserRole.SUPERVISOR,
+                "role": UserRole.CONTRACTOR,
             },
             {
                 "email": "agency@mundus.org",
@@ -123,22 +104,22 @@ def seed(db: SessionLocal = None):
         # Seed Contractors
         demo_contractors = [
             {
+                "id": uuid.uuid4().hex,
                 "name": "CleanCity Services",
-                "supervisor_name": "Emmanuel Udo",
-                "supervisor_email": "supervisor@mundus.org",
-                "supervisor_user_id": emmanuel.id if emmanuel else None,
+                "email": "supervisor@mundus.org",
+                "user_id": emmanuel.id if emmanuel else None,
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "GreenPath Ltd",
-                "supervisor_name": "Blessing Akpan",
-                "supervisor_email": "blessing@mundus.org",
-                "supervisor_user_id": blessing.id if blessing else None,
+                "email": "blessing@mundus.org",
+                "user_id": blessing.id if blessing else None,
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "EcoWaste Management",
-                "supervisor_name": "Bassey Okon",
-                "supervisor_email": "bassey@mundus.org",
-                "supervisor_user_id": bassey.id if bassey else None,
+                "email": "bassey@mundus.org",
+                "user_id": bassey.id if bassey else None,
             },
         ]
 
@@ -155,93 +136,97 @@ def seed(db: SessionLocal = None):
             else:
                 contractor_records[cdata["name"]] = existing_c
 
+        clean_city = contractor_records.get("CleanCity Services")
+        green_path = contractor_records.get("GreenPath Ltd")
+        eco_waste = contractor_records.get("EcoWaste Management")
+
         now = datetime.now(timezone.utc)
         demo_dump_points = [
             {
+                "id": uuid.uuid4().hex,
                 "name": "Nwaniba Road Dump Point",
                 "code": "AK-UYO-NWN-01",
                 "sector": "Sector 4 · Uyo Urban Core",
                 "latitude": 5.0378,
                 "longitude": 7.9128,
-                "assigned_contractor_id": "CleanCity Services",
-                "assigned_supervisor_id": emmanuel.id if emmanuel else None,
+                "assigned_contractor_id": clean_city.id if clean_city else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=14),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "IBB Way Central Evacuation Hub",
                 "code": "AK-UYO-IBB-02",
                 "sector": "Sector 2 · Commercial Center",
                 "latitude": 5.0245,
                 "longitude": 7.9281,
-                "assigned_contractor_id": "GreenPath Ltd",
-                "assigned_supervisor_id": blessing.id if blessing else None,
+                "assigned_contractor_id": green_path.id if green_path else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=12),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "Oron Road Market Collector",
                 "code": "AK-UYO-ORN-03",
                 "sector": "Sector 3 · Market District",
                 "latitude": 5.0312,
                 "longitude": 7.9354,
-                "assigned_contractor_id": "CleanCity Services",
-                "assigned_supervisor_id": bassey.id if bassey else None,
+                "assigned_contractor_id": clean_city.id if clean_city else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=11),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "Plaza Commercial Waste Site",
                 "code": "AK-UYO-PLZ-04",
                 "sector": "Sector 1 · Plaza Central",
                 "latitude": 5.0410,
                 "longitude": 7.9215,
-                "assigned_contractor_id": "GreenPath Ltd",
-                "assigned_supervisor_id": emmanuel.id if emmanuel else None,
+                "assigned_contractor_id": green_path.id if green_path else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=9),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "Aka Road Junction Collector",
                 "code": "AK-UYO-AKA-05",
                 "sector": "Sector 5 · Aka Junction",
                 "latitude": 5.0198,
                 "longitude": 7.9180,
-                "assigned_contractor_id": "CleanCity Services",
-                "assigned_supervisor_id": blessing.id if blessing else None,
+                "assigned_contractor_id": clean_city.id if clean_city else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=8),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "Hospital Road Waste Terminal",
                 "code": "AK-UYO-HSP-06",
                 "sector": "Sector 6 · Health District",
                 "latitude": 5.0300,
                 "longitude": 7.9200,
-                "assigned_contractor_id": "CleanCity Services",
-                "assigned_supervisor_id": emmanuel.id if emmanuel else None,
+                "assigned_contractor_id": clean_city.id if clean_city else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=3),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "Market Square Evacuation Point",
                 "code": "AK-UYO-MKT-07",
                 "sector": "Sector 3 · Market District",
                 "latitude": 5.0280,
                 "longitude": 7.9250,
-                "assigned_contractor_id": "GreenPath Ltd",
-                "assigned_supervisor_id": blessing.id if blessing else None,
+                "assigned_contractor_id": green_path.id if green_path else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=1),
             },
             {
+                "id": uuid.uuid4().hex,
                 "name": "Industrial Layout Dump Point",
                 "code": "AK-UYO-IND-08",
                 "sector": "Sector 7 · Industrial Area",
                 "latitude": 5.0450,
                 "longitude": 7.9100,
-                "assigned_contractor_id": "CleanCity Services",
-                "assigned_supervisor_id": bassey.id if bassey else None,
+                "assigned_contractor_id": eco_waste.id if eco_waste else None,
                 "interval_days": 7,
                 "last_clearance_timestamp": now - timedelta(days=1),
             },
@@ -274,7 +259,7 @@ def seed(db: SessionLocal = None):
                     name="Adaeze Okoro",
                     phone="08031234567",
                     site_id=nwaniba_site.id,
-                    contractor_id=1,
+                    contractor_id=nwaniba_site.assigned_contractor_id,
                     status=ReporterStatus.APPROVED,
                     token="demo-reporter-nwaniba-123",
                 )
@@ -299,7 +284,7 @@ def seed(db: SessionLocal = None):
             if not ci_existing:
                 ci = CheckIn(
                     site_id=ibb_site.id,
-                    supervisor_id=blessing.id,
+                    user_id=blessing.id,
                     type=CheckInType.BEFORE,
                     photo_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
                     photo_hash="abc123hash456",
@@ -320,7 +305,7 @@ def seed(db: SessionLocal = None):
             if not existing_alert:
                 alert = ContractorAlert(
                     site_id=nwaniba_site.id,
-                    supervisor_id=emmanuel.id,
+                    contractor_id=nwaniba_site.assigned_contractor_id,
                     message=f"{nwaniba_site.name} reported full by Adaeze Okoro",
                     is_seen=False,
                 )
