@@ -11,7 +11,6 @@ class DumpPointBase(BaseModel):
     code: str | None = None
     sector: str | None = None
     assigned_contractor_id: str | None = None
-    assigned_supervisor_id: int | None = None
     interval_days: int = Field(default=7, ge=1)
 
 
@@ -26,19 +25,17 @@ class DumpPointUpdate(BaseModel):
     code: str | None = None
     sector: str | None = None
     assigned_contractor_id: str | None = None
-    assigned_supervisor_id: int | None = None
     interval_days: int | None = Field(None, ge=1)
 
 
 class DumpPointAssign(BaseModel):
-    assigned_supervisor_id: int | None = None
     assigned_contractor_id: str | None = None
 
 
 class DumpPointResponse(DumpPointBase):
-    id: int
+    id: str
     assigned_contractor_name: str | None = None
-    assigned_supervisor_name: str | None = None
+    assigned_contractor_email: str | None = None
     last_clearance_timestamp: datetime | None = None
     created_at: datetime
     formatted_last_cleared: str | None = None
@@ -53,22 +50,12 @@ class DumpPointResponse(DumpPointBase):
     def from_orm_computed(cls, dump_point, flags: list[str] | None = None):
         resp = cls.model_validate(dump_point)
 
-        if hasattr(dump_point, "assigned_supervisor") and dump_point.assigned_supervisor:
-            resp.assigned_supervisor_name = (
-                dump_point.assigned_supervisor.full_name or dump_point.assigned_supervisor.email
-            )
-        CONTRACTOR_NAME_MAP = {
-            "CTR-AK-001": "CleanCity Services",
-            "CTR-AK-002": "EcoWaste Management",
-            "CTR-AK-003": "GreenGlobe Logistics",
-            "CTR-AK-004": "Apex Sanitation",
-        }
-        if dump_point.assigned_contractor_id:
-            resp.assigned_contractor_name = CONTRACTOR_NAME_MAP.get(
-                dump_point.assigned_contractor_id, dump_point.assigned_contractor_id
-            )
+        if hasattr(dump_point, "assigned_contractor") and dump_point.assigned_contractor:
+            resp.assigned_contractor_name = dump_point.assigned_contractor.name
+            resp.assigned_contractor_email = dump_point.assigned_contractor.email
         else:
             resp.assigned_contractor_name = None
+            resp.assigned_contractor_email = None
 
         if dump_point.last_clearance_timestamp:
             now = datetime.now(timezone.utc)

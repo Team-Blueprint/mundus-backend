@@ -6,7 +6,7 @@ from app.auth.models import User, UserRole
 from app.core.exceptions import EntityNotFoundException, PermissionDeniedException
 
 
-def get_site_flags(db: Session, site_id: int) -> list[str]:
+def get_site_flags(db: Session, site_id: str) -> list[str]:
     from app.check_ins.models import CheckIn, CheckInStatus
     from app.reporters.models import ReporterFlag
 
@@ -51,7 +51,6 @@ def create_dump_point(db: Session, dump_point_in: DumpPointCreate) -> DumpPointR
         code=dump_point_in.code,
         sector=dump_point_in.sector,
         assigned_contractor_id=dump_point_in.assigned_contractor_id,
-        assigned_supervisor_id=dump_point_in.assigned_supervisor_id,
         interval_days=dump_point_in.interval_days,
     )
     db.add(db_obj)
@@ -70,8 +69,13 @@ def list_dump_points(
     offset: int = 0,
 ) -> list[DumpPointResponse]:
     query = db.query(DumpPoint)
-    if current_user.role == UserRole.SUPERVISOR:
-        query = query.filter(DumpPoint.assigned_supervisor_id == current_user.id)
+    if current_user.role == UserRole.CONTRACTOR:
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+        if contractor:
+            query = query.filter(DumpPoint.assigned_contractor_id == contractor.id)
+        else:
+            return []
 
     dump_points = query.all()
     results = []
@@ -101,7 +105,7 @@ def list_dump_points(
                 return True
             if r.assigned_contractor_name and q in r.assigned_contractor_name.lower():
                 return True
-            if r.assigned_supervisor_name and q in r.assigned_supervisor_name.lower():
+            if r.assigned_contractor_email and q in r.assigned_contractor_email.lower():
                 return True
             return False
 
@@ -115,26 +119,26 @@ def list_dump_points(
     return results[offset : offset + limit]
 
 
-def get_dump_point_by_id(db: Session, dump_point_id: int, current_user: User = None) -> DumpPointResponse:
+def get_dump_point_by_id(db: Session, dump_point_id: str, current_user: User = None) -> DumpPointResponse:
     db_obj = db.query(DumpPoint).filter(DumpPoint.id == dump_point_id).first()
     if not db_obj:
         raise EntityNotFoundException("DumpPoint", dump_point_id)
 
-    if current_user and current_user.role == UserRole.SUPERVISOR:
-        if db_obj.assigned_supervisor_id != current_user.id:
-            raise PermissionDeniedException("Supervisors can only access their assigned dump points.")
+    if current_user and current_user.role == UserRole.CONTRACTOR:
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+        if not contractor or db_obj.assigned_contractor_id != contractor.id:
+            raise PermissionDeniedException("Contractors can only access their assigned dump points.")
 
     site_flags = get_site_flags(db, db_obj.id)
     return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
-def assign_supervisor(db: Session, dump_point_id: int, assign_data: DumpPointAssign) -> DumpPointResponse:
+def assign_dump_point(db: Session, dump_point_id: str, assign_data: DumpPointAssign) -> DumpPointResponse:
     db_obj = db.query(DumpPoint).filter(DumpPoint.id == dump_point_id).first()
     if not db_obj:
         raise EntityNotFoundException("DumpPoint", dump_point_id)
 
-    if assign_data.assigned_supervisor_id is not None:
-        db_obj.assigned_supervisor_id = assign_data.assigned_supervisor_id
     if assign_data.assigned_contractor_id is not None:
         db_obj.assigned_contractor_id = assign_data.assigned_contractor_id
 
@@ -144,7 +148,7 @@ def assign_supervisor(db: Session, dump_point_id: int, assign_data: DumpPointAss
     return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
-def update_dump_point(db: Session, dump_point_id: int, update_data: DumpPointUpdate) -> DumpPointResponse:
+def update_dump_point(db: Session, dump_point_id: str, update_data: DumpPointUpdate) -> DumpPointResponse:
     db_obj = db.query(DumpPoint).filter(DumpPoint.id == dump_point_id).first()
     if not db_obj:
         raise EntityNotFoundException("DumpPoint", dump_point_id)
@@ -158,7 +162,7 @@ def update_dump_point(db: Session, dump_point_id: int, update_data: DumpPointUpd
     return DumpPointResponse.from_orm_computed(db_obj, flags=site_flags)
 
 
-def delete_dump_point(db: Session, dump_point_id: int) -> dict:
+def delete_dump_point(db: Session, dump_point_id: str) -> dict:
     db_obj = db.query(DumpPoint).filter(DumpPoint.id == dump_point_id).first()
     if not db_obj:
         raise EntityNotFoundException("DumpPoint", dump_point_id)
@@ -180,7 +184,7 @@ def delete_dump_point(db: Session, dump_point_id: int) -> dict:
 
 
 
-def get_site_history_timeline(db: Session, dump_point_id: int, current_user: User) -> list[dict]:
+def get_site_history_timeline(db: Session, dump_point_id: str, current_user: User) -> list[dict]:
     # Verify site access
     get_dump_point_by_id(db, dump_point_id, current_user)
 
@@ -193,7 +197,7 @@ def get_site_history_timeline(db: Session, dump_point_id: int, current_user: Use
     events = []
 
     for ci in check_ins:
-        actor_name = ci.supervisor.full_name if ci.supervisor else "Supervisor"
+        actor_name = ci.user.full_name if ci.user else "Contractor"
         ts_iso = ci.server_timestamp.isoformat()
         photo_info = {
             "photo_url": ci.photo_url,

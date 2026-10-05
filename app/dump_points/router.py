@@ -41,7 +41,7 @@ def list_dump_points(
 # @router.get("/history/{id}", status_code=status.HTTP_200_OK)
 @router.get("/{id}/history", status_code=status.HTTP_200_OK)
 def get_site_history_timeline(
-    id: int,
+    id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -51,7 +51,7 @@ def get_site_history_timeline(
 
 @router.get("/detail/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def get_dump_point_detail(
-    id: int,
+    id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -61,19 +61,19 @@ def get_dump_point_detail(
 
 # @router.put("/assign/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 @router.put("/{id}/assign", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
-def assign_supervisor(
-    id: int,
+def assign_contractor(
+    id: str,
     assign_data: DumpPointAssign,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
 ):
-    """Assign a contractor / supervisor to a dump point (Agency viewer / admin)."""
-    return dump_point_service.assign_supervisor(db, id, assign_data)
+    """Assign a contractor to a dump point (Agency viewer / admin)."""
+    return dump_point_service.assign_dump_point(db, id, assign_data)
 
 
 @router.put("/update/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def update_dump_point_explicit(
-    id: int,
+    id: str,
     update_data: DumpPointUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
@@ -85,7 +85,7 @@ def update_dump_point_explicit(
 @router.delete("/delete/{id}", status_code=status.HTTP_200_OK)
 # @router.delete("/{id}", status_code=status.HTTP_200_OK)
 def delete_dump_point(
-    id: int,
+    id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
 ):
@@ -97,7 +97,7 @@ def delete_dump_point(
 
 @router.get("/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def get_dump_point(
-    id: int,
+    id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -107,7 +107,7 @@ def get_dump_point(
 
 @router.put("/{id}", response_model=DumpPointResponse, status_code=status.HTTP_200_OK)
 def update_dump_point(
-    id: int,
+    id: str,
     update_data: DumpPointUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
