@@ -89,7 +89,7 @@ def nominate_reporter_service(db: Session, data: ReporterNominateRequest) -> Rep
 def list_reporters_service(
     db: Session,
     current_user: User,
-    site_id: int | None = None,
+    site_id: str | None = None,
     status_filter: str | None = None,
     q: str | None = None,
     limit: int = 10,
@@ -338,7 +338,7 @@ def flag_site_full_service(
     alert_msg = f"{site.name} reported full by {reporter_name}"
     contractor_alert = ContractorAlert(
         site_id=site.id,
-        supervisor_id=site.assigned_supervisor_id,
+        contractor_id=site.assigned_contractor_id,
         message=alert_msg,
         is_seen=False,
     )
@@ -347,28 +347,29 @@ def flag_site_full_service(
     db.refresh(db_flag)
 
     # 6. Dispatch async email and push notifications
-    supervisor_user = site.assigned_supervisor
-    if supervisor_user and supervisor_user.email:
-        subject, html_content, text_content = format_site_flagged_email(
-            site_name=site.name,
-            sector=site.sector,
-            reporter_name=reporter_name,
-            site_id=site.id,
-            timestamp_str=now.strftime("%d %b %Y, %I:%M %p UTC"),
-            photo_url=flag_in.photo_url,
-        )
-        if background_tasks:
-            background_tasks.add_task(
-                send_brevo_email,
-                supervisor_user.email,
-                supervisor_user.full_name,
-                subject,
-                html_content,
-                text_content,
+    if site.assigned_contractor and site.assigned_contractor.user:
+        supervisor_user = site.assigned_contractor.user
+        if supervisor_user.email:
+            subject, html_content, text_content = format_site_flagged_email(
+                site_name=site.name,
+                sector=site.sector,
+                reporter_name=reporter_name,
+                site_id=site.id,
+                timestamp_str=now.strftime("%d %b %Y, %I:%M %p UTC"),
+                photo_url=flag_in.photo_url,
             )
+            if background_tasks:
+                background_tasks.add_task(
+                    send_brevo_email,
+                    supervisor_user.email,
+                    supervisor_user.full_name,
+                    subject,
+                    html_content,
+                    text_content,
+                )
 
-            # FCM Push to supervisor devices
-            device_tokens = get_user_device_tokens(db, supervisor_user.id)
+                # FCM Push to supervisor devices
+                device_tokens = get_user_device_tokens(db, supervisor_user.id)
             if device_tokens:
                 background_tasks.add_task(
                     send_push_notification,
@@ -395,7 +396,7 @@ def flag_site_full_service(
     )
 
 
-def list_site_flags_service(db: Session, site_id: int) -> list[ReporterFlagResponse]:
+def list_site_flags_service(db: Session, site_id: str) -> list[ReporterFlagResponse]:
     site = db.query(DumpPoint).filter(DumpPoint.id == site_id).first()
     if not site:
         raise EntityNotFoundException("DumpPoint", site_id)

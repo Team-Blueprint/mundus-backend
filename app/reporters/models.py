@@ -18,8 +18,8 @@ class Reporter(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=False, index=True)
-    site_id = Column(Integer, ForeignKey("dump_points.id"), nullable=False, index=True)
-    contractor_id = Column(Integer, nullable=True)
+    site_id = Column(String(36), ForeignKey("dump_points.id"), nullable=False, index=True)
+    contractor_id = Column(String(36), nullable=True)
     status = Column(Enum(ReporterStatus), default=ReporterStatus.PENDING, nullable=False, index=True)
     token = Column(String(64), unique=True, index=True, nullable=True)
     rejection_reason = Column(String(500), nullable=True)
@@ -33,7 +33,7 @@ class ReporterFlag(Base):
     __tablename__ = "reporter_flags"
 
     id = Column(Integer, primary_key=True, index=True)
-    site_id = Column(Integer, ForeignKey("dump_points.id"), nullable=False, index=True)
+    site_id = Column(String(36), ForeignKey("dump_points.id"), nullable=False, index=True)
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     reporter_community_id = Column(Integer, ForeignKey("reporters.id"), nullable=True, index=True)
     reporter_name = Column(String(255), nullable=True)

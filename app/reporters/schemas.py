@@ -5,8 +5,8 @@ from app.dump_points.schemas import DumpPointResponse
 
 
 class ReporterNominateRequest(BaseModel):
-    site_id: int
-    contractor_id: int | None = None
+    site_id: str
+    contractor_id: str | None = None
     name: str = Field(..., min_length=2, max_length=255)
     phone: str = Field(..., min_length=11, max_length=11)
 
@@ -27,9 +27,9 @@ class ReporterResponse(BaseModel):
     id: int
     name: str
     phone: str
-    site_id: int
+    site_id: str
     site_name: str | None = None
-    contractor_id: int | None = None
+    contractor_id: str | None = None
     status: str
     token: str | None = None
     rejection_reason: str | None = None
@@ -52,7 +52,7 @@ class PublicReporterSiteResponse(BaseModel):
 
 
 class ReporterFlagCreate(BaseModel):
-    site_id: int
+    site_id: str
     reporter_token: str | None = None
     note: str | None = None
     photo_url: str | None = Field(default=None, description="Evidence photo URL from /media/reporter-upload")
@@ -60,7 +60,7 @@ class ReporterFlagCreate(BaseModel):
 
 class ReporterFlagResponse(BaseModel):
     id: int
-    site_id: int
+    site_id: str
     reporter_id: int | None = None
     reporter_name: str | None = None
     timestamp: datetime

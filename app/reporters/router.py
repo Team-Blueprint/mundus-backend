@@ -21,15 +21,15 @@ router = APIRouter(tags=["Community Reporters"])
 def nominate_reporter(
     payload: ReporterNominateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.SUPERVISOR, UserRole.AGENCY])),
+    current_user: User = Depends(require_role([UserRole.CONTRACTOR, UserRole.AGENCY])),
 ):
-    """Nominate a community reporter for a dump point site (Contractor supervisor or Agency)."""
+    """Nominate a community reporter for a dump point site (Contractor or Agency)."""
     return reporter_service.nominate_reporter_service(db, payload)
 
 
 @router.get("/reporters", response_model=list[ReporterResponse], status_code=status.HTTP_200_OK)
 def list_reporters(
-    site_id: int | None = Query(None, description="Filter reporters by site ID"),
+    site_id: str | None = Query(None, description="Filter reporters by site ID"),
     status_filter: str | None = Query(None, alias="status", description="Filter by status: pending, approved, rejected, revoked, all"),
     q: str | None = Query(None, description="Search by reporter name or phone"),
     limit: int = Query(default=10, ge=1, le=100),
@@ -37,7 +37,7 @@ def list_reporters(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List reporter roster (Agency sees tokens & WhatsApp share links; Supervisors see masked tokens)."""
+    """List reporter roster (Agency sees tokens & WhatsApp share links; Contractors see masked tokens)."""
     return reporter_service.list_reporters_service(
         db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset
     )
@@ -101,7 +101,7 @@ def flag_site_full(
 
 @router.get("/reporters/site/{site_id}/flags", response_model=list[ReporterFlagResponse], status_code=status.HTTP_200_OK)
 def list_site_flags(
-    site_id: int,
+    site_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
