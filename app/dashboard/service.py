@@ -18,7 +18,7 @@ CONTRACTOR_MAP = {
 
 
 def get_dashboard_stats(db: Session) -> DashboardStatsResponse:
-    # Dummy agency user to get all dump points without supervisor scoping
+    # Dummy agency user to get all dump points without contractor scoping
     admin_context = User(id=0, role=UserRole.AGENCY)
     all_sites = list_dump_points(db, admin_context)
 

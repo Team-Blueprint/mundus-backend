@@ -26,7 +26,7 @@ def get_dashboard_stats(
 @router.get("/sites", response_model=DashboardSummaryResponse, status_code=status.HTTP_200_OK)
 def get_dashboard_sites(
     status_filter: str | None = Query(None, alias="status", description="Filter: critical, overdue, on_schedule, flagged, all"),
-    search: str | None = Query(None, alias="q", description="Search by site name, contractor, or supervisor"),
+    search: str | None = Query(None, alias="q", description="Search by site name, contractor, or contractor"),
     contractor: str | None = Query(None, description="Filter by contractor name/ID"),
     overdue_only: bool = Query(False, description="True = only overdue + critical sites"),
     limit: int = Query(default=10, ge=1, le=100),
