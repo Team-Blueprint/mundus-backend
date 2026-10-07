@@ -47,7 +47,7 @@ def seed(db: SessionLocal = None):
 
         demo_users = [
             {
-                "email": "supervisor@mundus.org",
+                "email": "contractor@mundus.org",
                 "password": "Password123!",
                 "full_name": "Emmanuel Udo",
                 "role": UserRole.CONTRACTOR,
@@ -97,7 +97,7 @@ def seed(db: SessionLocal = None):
             else:
                 user_records[udata["email"]] = existing
 
-        emmanuel = user_records.get("supervisor@mundus.org")
+        emmanuel = user_records.get("contractor@mundus.org")
         blessing = user_records.get("blessing@mundus.org")
         bassey = user_records.get("bassey@mundus.org")
 
@@ -105,19 +105,19 @@ def seed(db: SessionLocal = None):
         demo_contractors = [
             {
                 "id": uuid.uuid4().hex,
-                "name": "CleanCity Services",
-                "email": "supervisor@mundus.org",
+                "name": "Emmanuel Udo",
+                "email": "contractor@mundus.org",
                 "user_id": emmanuel.id if emmanuel else None,
             },
             {
                 "id": uuid.uuid4().hex,
-                "name": "GreenPath Ltd",
+                "name": "Blessing Akpan",
                 "email": "blessing@mundus.org",
                 "user_id": blessing.id if blessing else None,
             },
             {
                 "id": uuid.uuid4().hex,
-                "name": "EcoWaste Management",
+                "name": "Bassey Okon",
                 "email": "bassey@mundus.org",
                 "user_id": bassey.id if bassey else None,
             },

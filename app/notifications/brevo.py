@@ -124,7 +124,7 @@ def format_site_flagged_email(
         {photo_block}
         <p>Please dispatch field personnel to conduct clearance and complete the before/after check-in verification:</p>
         <p style="margin: 25px 0;">
-            <a href="{site_url}" style="background: #0284c7; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Site on Mundus Field App</a>
+            <a href="{site_url}" style="background: #0b3d2c; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">View Site on Mundus Field App</a>
         </p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
         <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>
@@ -151,7 +151,7 @@ def format_password_reset_otp_email(otp: str, full_name: str | None = None) -> t
 
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #0284c7; margin-top: 0;">🔐 Password Reset Verification</h2>
+        <h2 style="color: #0b3d2c; margin-top: 0;">🔐 Password Reset Verification</h2>
         <p>Hello {display_name},</p>
         <p>We received a request to reset your Mundus account password. Use the verification code below to complete your password reset:</p>
         <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 8px; margin: 25px 0;">
@@ -177,19 +177,19 @@ def format_password_reset_otp_email(otp: str, full_name: str | None = None) -> t
 
 
 def format_password_reset_email(reset_url: str, full_name: str | None = None) -> tuple[str, str, str]:
-    """Return (subject, html_content, text_content) for a supervisor password reset email."""
+    """Return (subject, html_content, text_content) for a contractor password reset email."""
     subject = "[Mundus] Reset your password"
-    display_name = full_name or "Supervisor"
+    display_name = full_name or "Contractor"
 
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #0284c7; margin-top: 0;">🔐 Password Reset Request</h2>
+        <h2 style="color: #0b3d2c; margin-top: 0;">🔐 Password Reset Request</h2>
         <p>Hello {display_name},</p>
-        <p>We received a request to reset your Mundus supervisor account password. Click the button below to set a new password. This link expires in <strong>1 hour</strong> and can only be used once.</p>
+        <p>We received a request to reset your Mundus contractor account password. Click the button below to set a new password. This link expires in <strong>1 hour</strong> and can only be used once.</p>
         <p style="margin: 25px 0;">
-            <a href="{reset_url}" style="background: #0284c7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+            <a href="{reset_url}" style="background: #0b3d2c; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
         </p>
-        <p style="color: #64748b; font-size: 13px;">Or copy this link into your browser:<br><a href="{reset_url}" style="color: #0284c7;">{reset_url}</a></p>
+        <p style="color: #64748b; font-size: 13px;">Or copy this link into your browser:<br><a href="{reset_url}" style="color: #0b3d2c;">{reset_url}</a></p>
         <p style="color: #64748b; font-size: 13px;">If you did not request a password reset, you can safely ignore this email — your password will not change.</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
         <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>
@@ -215,7 +215,7 @@ def format_staff_invite_email(full_name: str, email: str, temp_password: str, lo
 
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #0284c7; margin-top: 0;">👋 Welcome to Mundus</h2>
+        <h2 style="color: #0b3d2c; margin-top: 0;">👋 Welcome to Mundus</h2>
         <p>Hello {full_name},</p>
         <p>You've been added as a staff member on the Mundus Waste Tracking platform. Here are your login details:</p>
         <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 15px 0; font-family: monospace;">
@@ -224,7 +224,7 @@ def format_staff_invite_email(full_name: str, email: str, temp_password: str, lo
         </div>
         <p>Please log in and change your password immediately.</p>
         <p style="margin: 25px 0;">
-            <a href="{login_url}" style="background: #0284c7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to Mundus</a>
+            <a href="{login_url}" style="background: #0b3d2c; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Log In to Mundus</a>
         </p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
         <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>

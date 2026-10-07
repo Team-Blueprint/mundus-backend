@@ -26,13 +26,13 @@ def create_dump_point(
 @router.get("/all", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 def list_dump_points(
     status_filter: str | None = Query(None, alias="status", description="Filter by status: critical, overdue, on_schedule, flagged, all"),
-    search: str | None = Query(None, description="Search by site name, code, sector, contractor, or supervisor"),
+    search: str | None = Query(None, description="Search by site name, code, sector, contractor, or contractor"),
     limit: int = Query(10, ge=1, le=10000, description="Max items to return"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List dump points. Supervisors only see their assigned sites; agency users see all."""
+    """List dump points. Contractors only see their assigned sites; agency users see all."""
     return dump_point_service.list_dump_points(db, current_user, status_filter=status_filter, search_query=search, limit=limit, offset=offset)
 
 

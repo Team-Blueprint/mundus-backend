@@ -348,8 +348,8 @@ def flag_site_full_service(
 
     # 6. Dispatch async email and push notifications
     if site.assigned_contractor and site.assigned_contractor.user:
-        supervisor_user = site.assigned_contractor.user
-        if supervisor_user.email:
+        contractor_user = site.assigned_contractor.user
+        if contractor_user.email:
             subject, html_content, text_content = format_site_flagged_email(
                 site_name=site.name,
                 sector=site.sector,
@@ -361,15 +361,15 @@ def flag_site_full_service(
             if background_tasks:
                 background_tasks.add_task(
                     send_brevo_email,
-                    supervisor_user.email,
-                    supervisor_user.full_name,
+                    contractor_user.email,
+                    contractor_user.full_name,
                     subject,
                     html_content,
                     text_content,
                 )
 
-                # FCM Push to supervisor devices
-                device_tokens = get_user_device_tokens(db, supervisor_user.id)
+                # FCM Push to contractor devices
+                device_tokens = get_user_device_tokens(db, contractor_user.id)
             if device_tokens:
                 background_tasks.add_task(
                     send_push_notification,
