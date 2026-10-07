@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     OVERDUE_THRESHOLD_DAYS: int = 10
 
     # Frontend Origin for deep links
-    FRONTEND_ORIGIN: str = "http://localhost:3000"
+    FRONTEND_ORIGIN: str = "https://usemundus.pxxl.click/contractor/sign-in"
 
     # Brevo Email Configuration
     BREVO_API_KEY: Optional[str] = None
