@@ -150,12 +150,12 @@ def list_contractors_service(
     return results[offset: offset + limit]
 
 
-def get_supervisor_sites_service(db: Session, current_user: User) -> list[DumpPointResponse]:
-    """Returns assigned sites for the supervisor, sorted most overdue first."""
+def get_contractor_sites_service(db: Session, current_user: User) -> list[DumpPointResponse]:
+    """Returns assigned sites for the contractor, sorted most overdue first."""
     return dump_point_service.list_dump_points(db, current_user)
 
 
-def get_supervisor_submissions_service(
+def get_contractor_submissions_service(
     db: Session,
     current_user: User,
     site_id: str | None = None,

@@ -20,7 +20,7 @@ router = APIRouter(tags=["Contractors"])
 
 @router.get("/contractors/all", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
 def list_contractors(
-    q: str | None = Query(None, description="Search by contractor name or supervisor"),
+    q: str | None = Query(None, description="Search by contractor name or contractor"),
     status_filter: str | None = Query(None, alias="status", description="Filter: critical, overdue, on_schedule, all"),
     needs_attention: bool = Query(False, description="True = only contractors with overdue or critical sites"),
     limit: int = Query(default=10, ge=1, le=100),
@@ -40,23 +40,23 @@ def create_contractor(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.AGENCY])),
 ):
-    """Add a new waste management contractor and register its supervisor account."""
+    """Add a new waste management contractor and register its contractor account."""
     return contractor_service.create_contractor_service(db, data)
 
 
-# --- Supervisor Field App Endpoints ---
+# --- Contractor Field App Endpoints ---
 
 @router.get("/contractor/sites", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
-def get_supervisor_sites(
+def get_contractor_sites(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
-    """Retrieve assigned dump points for the logged-in supervisor, sorted most overdue first."""
-    return contractor_service.get_supervisor_sites_service(db, current_user)
+    """Retrieve assigned dump points for the logged-in contractor, sorted most overdue first."""
+    return contractor_service.get_contractor_sites_service(db, current_user)
 
 
 @router.get("/contractor/submissions", response_model=list[SubmissionPairResponse], status_code=status.HTTP_200_OK)
-def get_supervisor_submissions(
+def get_contractor_submissions(
     site_id: str | None = Query(None, description="Filter submissions by site ID"),
     status_filter: str | None = Query(None, alias="status", description="Filter: complete, pending, flagged, all"),
     q: str | None = Query(None, description="Search by site name substring"),
@@ -65,8 +65,8 @@ def get_supervisor_submissions(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
-    """Supervisor check-in history grouped by site and calendar day into before/after clearance pairs."""
-    return contractor_service.get_supervisor_submissions_service(
+    """Contractor check-in history grouped by site and calendar day into before/after clearance pairs."""
+    return contractor_service.get_contractor_submissions_service(
         db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset
     )
 
@@ -76,7 +76,7 @@ def get_contractor_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.CONTRACTOR, UserRole.AGENCY])),
 ):
-    """Retrieve active site full alerts for supervisor assigned dump points."""
+    """Retrieve active site full alerts for contractor assigned dump points."""
     return contractor_service.get_contractor_alerts_service(db, current_user)
 
 
@@ -99,7 +99,7 @@ def change_user_password(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Change user password (Supervisor settings screen)."""
+    """Change user password (Contractor settings screen)."""
     new_pw = payload.new or payload.new_password
     curr_pw = payload.current or payload.current_password
     return contractor_service.change_user_password_service(

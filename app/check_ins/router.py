@@ -16,7 +16,7 @@ def submit_check_in(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
-    """Submit a before or after clearance check-in photo + GPS coordinates (Contractor Supervisor)."""
+    """Submit a before or after clearance check-in photo + GPS coordinates (Contractor Contractor)."""
     return check_in_service.submit_check_in_service(db, check_in_in, current_user)
 
 
