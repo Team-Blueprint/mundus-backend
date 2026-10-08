@@ -67,7 +67,8 @@ def list_dump_points(
     search_query: str | None = None,
     limit: int = 10000,
     offset: int = 0,
-) -> list[DumpPointResponse]:
+    return_total: bool = False,
+) -> list[DumpPointResponse] | tuple[list[DumpPointResponse], int]:
     query = db.query(DumpPoint)
     if current_user.role == UserRole.CONTRACTOR:
         from app.contractors.models import Contractor
@@ -116,6 +117,8 @@ def list_dump_points(
         key=lambda r: r.days_since_last_clearance if r.days_since_last_clearance is not None else float("inf"),
         reverse=True,
     )
+    if return_total:
+        return results[offset : offset + limit], len(results)
     return results[offset : offset + limit]
 
 

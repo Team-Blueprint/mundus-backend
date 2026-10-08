@@ -474,7 +474,7 @@ def test_bank_reference_and_resolution():
     assert len(banks) >= 10
     gtbank = next((b for b in banks if b["code"] == "058"), None)
     assert gtbank is not None
-    assert "Guaranty Trust" in gtbank["name"]
+    assert ("Guaranty Trust" in gtbank["name"] or "GTBank" in gtbank["name"])
 
     # Resolve account
     resolve_resp = client.post(

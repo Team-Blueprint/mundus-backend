@@ -10,7 +10,7 @@ import app.dump_points.service as dump_point_service
 from app.check_ins.models import CheckIn, CheckInType
 from app.check_ins.schemas import CheckInResponse
 from app.core.security import get_password_hash, verify_password
-from app.core.exceptions import MundusException, EntityNotFoundException
+from app.core.exceptions import MundusException, EntityNotFoundException, PermissionDeniedException
 
 
 import uuid
@@ -102,7 +102,8 @@ def list_contractors_service(
     limit: int = 10,
     offset: int = 0,
     current_user: User | None = None,
-) -> list[ContractorResponse]:
+    return_total: bool = False,
+) -> list[ContractorResponse] | tuple[list[ContractorResponse], int]:
     query = db.query(Contractor)
     if current_user and current_user.role == UserRole.CONTRACTOR:
         query = query.filter(Contractor.user_id == current_user.id)
@@ -182,6 +183,8 @@ def list_contractors_service(
 
     # Default sort: critical desc
     results.sort(key=lambda r: r.critical, reverse=True)
+    if return_total:
+        return results[offset: offset + limit], len(results)
     return results[offset: offset + limit]
 
 
@@ -198,7 +201,8 @@ def get_contractor_submissions_service(
     q: str | None = None,
     limit: int = 10,
     offset: int = 0,
-) -> list[SubmissionPairResponse]:
+    return_total: bool = False,
+) -> list[SubmissionPairResponse] | tuple[list[SubmissionPairResponse], int]:
     """Groups contractor submissions into before/after clearance pairs by site and date."""
     from app.check_ins.models import CheckInStatus
     query = db.query(CheckIn).filter(CheckIn.user_id == current_user.id)
@@ -264,6 +268,8 @@ def get_contractor_submissions_service(
         )
 
     results.sort(key=lambda x: x.date, reverse=True)
+    if return_total:
+        return results[offset: offset + limit], len(results)
     return results[offset: offset + limit]
 
 
@@ -321,6 +327,10 @@ def change_user_password_service(db: Session, user_id: int, current_user: User, 
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise EntityNotFoundException("User", user_id)
+
+    # Ownership or agency role required
+    if current_user.id != target_user.id and current_user.role != UserRole.AGENCY:
+        raise PermissionDeniedException("You can only change your own password or require agency administrative privileges.")
 
     # If updating own password, verify current password if supplied
     if current_user.id == target_user.id and current_password:

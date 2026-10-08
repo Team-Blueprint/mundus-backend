@@ -19,7 +19,7 @@ from app.auth.models import User, UserRole
 from app.contractors.models import ContractorAlert
 from app.notifications.brevo import send_brevo_email, format_site_flagged_email
 from app.notifications.service import send_push_notification, get_user_device_tokens
-from app.core.exceptions import MundusException, EntityNotFoundException
+from app.core.exceptions import MundusException, EntityNotFoundException, RateLimitException
 from app.config import settings
 
 
@@ -94,7 +94,8 @@ def list_reporters_service(
     q: str | None = None,
     limit: int = 10,
     offset: int = 0,
-) -> list[ReporterResponse]:
+    return_total: bool = False,
+) -> list[ReporterResponse] | tuple[list[ReporterResponse], int]:
     query = db.query(Reporter)
     if site_id:
         query = query.filter(Reporter.site_id == site_id)
@@ -106,6 +107,15 @@ def list_reporters_service(
     results = []
     is_agency = current_user.role == UserRole.AGENCY
 
+    assigned_site_ids: set[str] = set()
+    if current_user.role == UserRole.CONTRACTOR:
+        from app.contractors.models import Contractor
+        contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+        if contractor:
+            assigned_site_ids = {
+                s[0] for s in db.query(DumpPoint.id).filter(DumpPoint.assigned_contractor_id == contractor.id).all()
+            }
+
     for r in reporters:
         if q:
             term = q.lower()
@@ -114,7 +124,17 @@ def list_reporters_service(
 
         site_name = r.site.name if r.site else None
         token_val = r.token if is_agency else None
-        wa_link = generate_whatsapp_link(r.phone, site_name or "Dump Point", r.token) if (is_agency and r.token) else None
+
+        is_contractor_approved_site = (
+            current_user.role == UserRole.CONTRACTOR
+            and r.status == ReporterStatus.APPROVED
+            and str(r.site_id) in assigned_site_ids
+        )
+        wa_link = (
+            generate_whatsapp_link(r.phone, site_name or "Dump Point", r.token)
+            if ((is_agency or is_contractor_approved_site) and r.token)
+            else None
+        )
 
         results.append(
             ReporterResponse(
@@ -132,6 +152,8 @@ def list_reporters_service(
                 whatsapp_link=wa_link,
             )
         )
+    if return_total:
+        return results[offset: offset + limit], len(results)
     return results[offset: offset + limit]
 
 
@@ -312,13 +334,11 @@ def flag_site_full_service(
         if flag_ts.tzinfo is None:
             flag_ts = flag_ts.replace(tzinfo=timezone.utc)
         elapsed_seconds = (now - flag_ts).total_seconds()
-        remaining_seconds = max(0, 12 * 3600 - elapsed_seconds)
-        hours_left = max(1, int(round(remaining_seconds / 3600.0)))
-        retry_str = f"{hours_left} hours" if hours_left > 1 else "1 hour"
+        remaining_seconds = int(max(0, 12 * 3600 - elapsed_seconds))
 
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={"detail": "Already reported", "retry_in": retry_str},
+        raise RateLimitException(
+            detail="Already reported. This site has a 12-hour lock.",
+            retry_in_seconds=remaining_seconds,
         )
 
     # 4. Save reporter flag record

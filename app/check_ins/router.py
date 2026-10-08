@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.deps import get_current_user, require_role
@@ -23,21 +23,27 @@ def submit_check_in(
 
 @router.get("/all", response_model=list[CheckInResponse], status_code=status.HTTP_200_OK)
 def list_check_ins(
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List check-in history."""
-    return check_in_service.list_all_check_ins(db, current_user)
+    items = check_in_service.list_all_check_ins(db, current_user)
+    response.headers["X-Total-Count"] = str(len(items))
+    return items
 
 
 @router.get("/site/{site_id}", response_model=list[CheckInResponse], status_code=status.HTTP_200_OK)
 def list_site_check_ins(
     site_id: str,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List check-ins for a specific dump point site."""
-    return check_in_service.list_site_check_ins(db, site_id, current_user)
+    items = check_in_service.list_site_check_ins(db, site_id, current_user)
+    response.headers["X-Total-Count"] = str(len(items))
+    return items
 
 
 @router.get("/pairings/{site_id}", response_model=CheckInPairingResponse, status_code=status.HTTP_200_OK)

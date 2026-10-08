@@ -71,3 +71,22 @@ class PayoutAuditLog(Base):
 
     statement = relationship("PayoutStatement", foreign_keys=[statement_id])
     actor = relationship("User", foreign_keys=[actor_id])
+
+
+class WalletTopUp(Base):
+    __tablename__ = "wallet_topups"
+
+    id = Column(String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
+    reference = Column(String(100), unique=True, index=True, nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), default="NGN", nullable=False)
+    status = Column(String(50), default="pending", nullable=False)  # pending, completed, failed
+    checkout_url = Column(String(500), nullable=True)
+    session_id = Column(String(100), nullable=True)
+    initiated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    provider_response = Column(JSON, default=dict, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    initiated_by = relationship("User", foreign_keys=[initiated_by_id])
+

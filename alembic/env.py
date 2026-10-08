@@ -1,6 +1,10 @@
+import os
+import sys
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.config import settings
 from app.database import Base
@@ -12,6 +16,7 @@ import app.reporters.models  # noqa
 import app.contractors.models  # noqa
 import app.agency.models  # noqa
 import app.notifications.models  # noqa
+import app.payouts.models  # noqa
 
 
 config = context.config

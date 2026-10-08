@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, status, Query, BackgroundTasks, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.deps import get_current_user, get_current_user_optional, require_role
@@ -29,6 +29,7 @@ def nominate_reporter(
 
 @router.get("/reporters", response_model=list[ReporterResponse], status_code=status.HTTP_200_OK)
 def list_reporters(
+    response: Response,
     site_id: str | None = Query(None, description="Filter reporters by site ID"),
     status_filter: str | None = Query(None, alias="status", description="Filter by status: pending, approved, rejected, revoked, all"),
     q: str | None = Query(None, description="Search by reporter name or phone"),
@@ -38,9 +39,11 @@ def list_reporters(
     current_user: User = Depends(get_current_user),
 ):
     """List reporter roster (Agency sees tokens & WhatsApp share links; Contractors see masked tokens)."""
-    return reporter_service.list_reporters_service(
-        db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset
+    items, total = reporter_service.list_reporters_service(
+        db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset, return_total=True
     )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.post("/reporters/{id}/approve", response_model=ReporterApproveResponse, status_code=status.HTTP_200_OK)

@@ -23,11 +23,23 @@ def test_reporter_flag_site_success_and_rate_limit():
     )
     site_id = create_resp.json()["id"]
 
+    # Omitting photo_url returns 422
+    missing_photo_resp = client.post(
+        "/reporters/flag-site",
+        headers=reporter_headers,
+        json={"site_id": site_id, "note": "No photo provided"}
+    )
+    assert missing_photo_resp.status_code == 422
+
     # 1. First flag succeeds
     flag_resp = client.post(
         "/reporters/flag-site",
         headers=reporter_headers,
-        json={"site_id": site_id, "note": "Overflowing waste at market entrance"}
+        json={
+            "site_id": site_id,
+            "photo_url": "https://storage.mundus.org/flag1.jpg",
+            "note": "Overflowing waste at market entrance"
+        }
     )
     assert flag_resp.status_code == 201
     data = flag_resp.json()
@@ -38,10 +50,18 @@ def test_reporter_flag_site_success_and_rate_limit():
     second_flag_resp = client.post(
         "/reporters/flag-site",
         headers=reporter_headers,
-        json={"site_id": site_id, "note": "Duplicate flag test"}
+        json={
+            "site_id": site_id,
+            "photo_url": "https://storage.mundus.org/flag2.jpg",
+            "note": "Duplicate flag test"
+        }
     )
     assert second_flag_resp.status_code == 429
-    assert "Already reported" in str(second_flag_resp.json())
+    res_data = second_flag_resp.json()
+    assert "detail" in res_data
+    assert "retry_in_seconds" in res_data
+    assert isinstance(res_data["retry_in_seconds"], int)
+    assert "Already reported" in res_data["detail"]
 
     # Clean up
     client.delete(f"/dump-points/{site_id}", headers=agency_headers)

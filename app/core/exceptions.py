@@ -37,6 +37,35 @@ class GeofenceMismatchException(MundusException):
         )
 
 
+class RateLimitException(MundusException):
+    def __init__(self, detail: str = "Already reported. Site is locked for 12 hours.", retry_in_seconds: int = 43200):
+        self.retry_in_seconds = int(retry_in_seconds)
+        super().__init__(
+            message=detail,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=detail,
+        )
+
+
+async def rate_limit_exception_handler(request: Request, exc: RateLimitException):
+    user_id = getattr(request.state, "user_id", None)
+    site_id = getattr(request.state, "site_id", None)
+
+    logger.warning(
+        f"Rate limit triggered: {exc.message} on {request.method} {request.url.path}",
+        extra={"user_id": user_id, "site_id": site_id}
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={
+            "detail": exc.message,
+            "retry_in_seconds": exc.retry_in_seconds,
+        },
+        headers={"Retry-After": str(exc.retry_in_seconds)},
+    )
+
+
 async def mundus_exception_handler(request: Request, exc: MundusException):
     user_id = getattr(request.state, "user_id", None)
     site_id = getattr(request.state, "site_id", None)

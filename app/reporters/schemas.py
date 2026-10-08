@@ -53,9 +53,9 @@ class PublicReporterSiteResponse(BaseModel):
 
 class ReporterFlagCreate(BaseModel):
     site_id: str
+    photo_url: str = Field(..., min_length=1, description="Evidence photo URL is mandatory")
     reporter_token: str | None = None
     note: str | None = None
-    photo_url: str | None = Field(default=None, description="Evidence photo URL from /media/reporter-upload")
 
 
 class ReporterFlagResponse(BaseModel):

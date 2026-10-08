@@ -11,7 +11,7 @@ from app.auth.models import User, UserRole
 from app.dump_points.models import DumpPoint
 from app.contractors.models import Contractor
 from app.check_ins.models import CheckIn, CheckInType, CheckInStatus
-from app.payouts.models import PayoutStatement, PayoutStatus, PayoutAuditLog
+from app.payouts.models import PayoutStatement, PayoutStatus, PayoutAuditLog, WalletTopUp
 from app.payouts.schemas import (
     ContractorPayoutDetailsUpdate,
     ContractorPayoutDetailsResponse,
@@ -20,6 +20,8 @@ from app.payouts.schemas import (
     ContractorProgressiveEarningsResponse,
     SiteClearanceBreakdown,
     HeldClearanceItem,
+    WalletTopUpRequest,
+    WalletTopUpResponse,
 )
 from app.payouts.bachs_client import bachs_client
 from app.core.exceptions import MundusException, EntityNotFoundException, PermissionDeniedException
@@ -254,7 +256,8 @@ def update_contractor_payout_details_service(
     if not contractor:
         raise EntityNotFoundException("Contractor", contractor_id)
 
-    contractor.monthly_stipend = float(data.monthly_stipend)
+    if data.monthly_stipend is not None:
+        contractor.monthly_stipend = float(data.monthly_stipend)
     contractor.bank_account_number = data.bank_account_number.strip()
     contractor.bank_code = data.bank_code.strip()
 
@@ -273,12 +276,12 @@ def update_contractor_payout_details_service(
     db.commit()
     db.refresh(contractor)
 
-    is_ready = bool(contractor.payment_provider_recipient_id and contractor.monthly_stipend > 0)
+    is_ready = bool(contractor.payment_provider_recipient_id and (contractor.monthly_stipend or 0) > 0)
     return ContractorPayoutDetailsResponse(
         contractor_id=contractor.id,
         name=contractor.name,
         email=contractor.email,
-        monthly_stipend=contractor.monthly_stipend,
+        monthly_stipend=float(contractor.monthly_stipend or 0.0),
         bank_name=contractor.bank_name,
         bank_account_number=contractor.bank_account_number,
         bank_account_name=contractor.bank_account_name,
@@ -496,7 +499,17 @@ def approve_payout_statement_service(
         db.refresh(statement)
         return _statement_to_dto(statement)
 
-    # 4. Initiate transfer with Bachs
+    # 4. Platform balance check
+    wallet = bachs_client.get_balance()
+    platform_balance = float(wallet.get("balance", 0.0))
+    if platform_balance < amount_to_pay:
+        raise MundusException(
+            message="insufficient_platform_balance",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="insufficient_platform_balance",
+        )
+
+    # 5. Initiate transfer with Bachs
     logger.info(
         f"Initiating Bachs payout for statement {statement.id}: Amount {amount_str} NGN to {contractor.payment_provider_recipient_id}"
     )
@@ -614,7 +627,31 @@ def handle_bachs_webhook_service(db: Session, event: dict) -> dict:
         f"Processing Bachs webhook: type={event_type}, id={event_id}, ref={reference}, withdrawal_id={withdrawal_id}"
     )
 
-    # Locate statement by unique_payout_reference or transfer_code
+    # 1. Check if this is a wallet top-up event (TOPUP- reference or collection event)
+    topup_record = None
+    if reference and reference.startswith("TOPUP-"):
+        topup_record = db.query(WalletTopUp).filter(WalletTopUp.reference == reference).first()
+    elif event.get("data", {}).get("metadata", {}).get("purpose") == "mundus_agency_wallet_topup":
+        ref = event.get("data", {}).get("reference")
+        if ref:
+            topup_record = db.query(WalletTopUp).filter(WalletTopUp.reference == ref).first()
+
+    if topup_record:
+        if event_type in ("collection.succeeded", "payment.success", "checkout.completed") or data.get("status") in ("successful", "completed", "paid"):
+            topup_record.status = "completed"
+            topup_record.provider_response = event
+            db.commit()
+            logger.info(f"Wallet top-up {topup_record.reference} marked COMPLETED via Bachs webhook.")
+            return {"received": True, "action": "wallet_topup_completed", "reference": topup_record.reference}
+        elif event_type in ("collection.failed", "payment.failed") or data.get("status") == "failed":
+            topup_record.status = "failed"
+            topup_record.provider_response = event
+            db.commit()
+            logger.info(f"Wallet top-up {topup_record.reference} marked FAILED via Bachs webhook.")
+            return {"received": True, "action": "wallet_topup_failed", "reference": topup_record.reference}
+        return {"received": True, "action": "wallet_topup_event_recorded", "reference": topup_record.reference}
+
+    # 2. Locate statement by unique_payout_reference or transfer_code
     statement = None
     if reference:
         statement = db.query(PayoutStatement).filter(PayoutStatement.unique_payout_reference == reference).first()
@@ -778,3 +815,82 @@ def _statement_to_dto(s: PayoutStatement) -> PayoutStatementResponse:
         created_at=s.created_at,
         updated_at=s.updated_at,
     )
+
+
+def create_wallet_topup_session_service(
+    db: Session,
+    data: WalletTopUpRequest,
+    current_user: User,
+) -> WalletTopUpResponse:
+    """Create a Bachs Checkout Session for agency wallet top-up."""
+    if data.amount <= 0:
+        raise MundusException(
+            message="Top-up amount must be greater than zero.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ref = f"TOPUP-AK-{uuid.uuid4().hex[:12].upper()}"
+    metadata = {
+        "initiated_by_user_id": current_user.id,
+        "initiated_by_email": current_user.email,
+        "purpose": "mundus_agency_wallet_topup",
+    }
+
+    session_data = bachs_client.create_checkout_session(
+        amount=data.amount,
+        reference=ref,
+        customer_email=current_user.email,
+        customer_name=current_user.full_name or "Agency Admin",
+        redirect_url=data.redirect_url,
+        metadata=metadata,
+    )
+
+    topup = WalletTopUp(
+        id=uuid.uuid4().hex,
+        reference=ref,
+        amount=float(data.amount),
+        currency="NGN",
+        status="pending",
+        checkout_url=session_data["checkout_url"],
+        session_id=session_data.get("session_id"),
+        initiated_by_id=current_user.id,
+        provider_response=session_data,
+    )
+    db.add(topup)
+    db.commit()
+    db.refresh(topup)
+
+    logger.info(f"Created wallet top-up session {ref} for NGN {data.amount:,.2f} by user {current_user.email}")
+    return WalletTopUpResponse(
+        checkout_url=topup.checkout_url,
+        reference=topup.reference,
+        amount=topup.amount,
+        currency=topup.currency,
+        session_id=topup.session_id,
+        status=topup.status,
+        created_at=topup.created_at,
+    )
+
+
+def list_wallet_topups_service(db: Session, limit: int = 20, offset: int = 0) -> list[WalletTopUpResponse]:
+    """List recent wallet top-up sessions."""
+    topups = (
+        db.query(WalletTopUp)
+        .order_by(WalletTopUp.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [
+        WalletTopUpResponse(
+            checkout_url=t.checkout_url,
+            reference=t.reference,
+            amount=t.amount,
+            currency=t.currency,
+            session_id=t.session_id,
+            status=t.status,
+            created_at=t.created_at,
+        )
+        for t in topups
+    ]
+

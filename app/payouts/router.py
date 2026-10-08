@@ -20,12 +20,15 @@ from app.payouts.schemas import (
     BankItemResponse,
     BankResolveRequest,
     BankResolveResponse,
+    PlatformWalletResponse,
+    WalletTopUpRequest,
+    WalletTopUpResponse,
 )
 import app.payouts.service as payout_service
 import os
 from fastapi.responses import HTMLResponse
 from app.payouts.bachs_client import bachs_client
-from app.core.exceptions import PermissionDeniedException, MundusException
+from app.core.exceptions import PermissionDeniedException, MundusException, EntityNotFoundException
 
 router = APIRouter(tags=["Payments & Payouts"])
 
@@ -238,49 +241,72 @@ def update_contractor_payout_details(
         data=data,
         current_user=current_user,
     )
-    """Export payout statements to CSV for municipal auditing and accounting."""
-    p_data = payout_service.list_payout_statements_service(db, period=period, limit=5000)
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "Reference",
-        "Contractor Name",
-        "Contractor Email",
-        "Period",
-        "Monthly Stipend (NGN)",
-        "Expected Clearances",
-        "Verified Clearances",
-        "Held Clearances",
-        "Payout Earned (NGN)",
-        "Status",
-        "Transfer Code",
-        "Approved At",
-    ])
-
-    for s in p_data.statements:
-        writer.writerow([
-            s.unique_payout_reference,
-            s.contractor_name or "",
-            s.contractor_email or "",
-            s.period,
-            f"{s.monthly_stipend:.2f}",
-            s.expected_clearances,
-            s.verified_clearances,
-            s.held_clearances,
-            f"{s.calculated_payout_amount:.2f}",
-            s.status.value,
-            s.transfer_code or "",
-            s.approved_at.isoformat() if s.approved_at else "",
-        ])
-
-    csv_content = output.getvalue()
-    filename = f"mundus_payouts_{period or 'all'}.csv"
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+@router.put(
+    "/contractor/payout-details",
+    response_model=ContractorPayoutDetailsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update logged-in contractor payout and bank details",
+)
+def update_my_payout_details(
+    data: ContractorPayoutDetailsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
+):
+    """Contractor updates their own payout and bank account details (own record only)."""
+    contractor = db.query(Contractor).filter(Contractor.user_id == current_user.id).first()
+    if not contractor:
+        raise EntityNotFoundException("Contractor", current_user.id)
+    return payout_service.update_contractor_payout_details_service(
+        db=db,
+        contractor_id=contractor.id,
+        data=data,
+        current_user=current_user,
     )
+
+
+@router.get(
+    "/agency/wallet",
+    response_model=PlatformWalletResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Bachs platform balance and wallet information",
+)
+def get_agency_wallet(
+    current_user: User = Depends(require_role([UserRole.AGENCY])),
+):
+    """Retrieve platform wallet balance, currency, and last updated timestamp from Bachs."""
+    return bachs_client.get_balance()
+
+
+@router.post(
+    "/agency/wallet/topup",
+    response_model=WalletTopUpResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Initialize Bachs Checkout session for agency wallet top-up",
+)
+def create_wallet_topup(
+    data: WalletTopUpRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.AGENCY])),
+):
+    """Creates a hosted Bachs checkout session for the agency admin to fund the platform wallet."""
+    return payout_service.create_wallet_topup_session_service(db=db, data=data, current_user=current_user)
+
+
+@router.get(
+    "/agency/wallet/topups",
+    response_model=list[WalletTopUpResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List agency wallet top-up transaction history",
+)
+def list_wallet_topups(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.AGENCY])),
+):
+    """Returns past wallet top-up sessions and payment statuses."""
+    return payout_service.list_wallet_topups_service(db=db, limit=limit, offset=offset)
+
 
 
 @router.get(

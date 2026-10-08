@@ -5,7 +5,7 @@ from app.payouts.models import PayoutStatus
 
 
 class ContractorPayoutDetailsUpdate(BaseModel):
-    monthly_stipend: float = Field(..., ge=0, description="Monthly fixed stipend in NGN")
+    monthly_stipend: float | None = Field(None, ge=0, description="Optional monthly fixed stipend in NGN")
     bank_account_number: str = Field(..., min_length=10, max_length=10, description="10-digit NUBAN account number")
     bank_code: str = Field(..., min_length=2, max_length=10, description="CBN 3-digit bank sort code")
     bank_name: str | None = Field(None, description="Commercial bank name")
@@ -16,7 +16,7 @@ class ContractorPayoutDetailsResponse(BaseModel):
     contractor_id: str
     name: str
     email: str
-    monthly_stipend: float
+    monthly_stipend: float | None = 0.0
     bank_name: str | None = None
     bank_account_number: str | None = None
     bank_account_name: str | None = None
@@ -33,7 +33,7 @@ class PayoutStatementResponse(BaseModel):
     contractor_name: str | None = None
     contractor_email: str | None = None
     period: str
-    monthly_stipend: float
+    monthly_stipend: float | None = 0.0
     expected_clearances: int
     verified_clearances: int
     held_clearances: int
@@ -79,7 +79,7 @@ class ContractorProgressiveEarningsResponse(BaseModel):
     contractor_name: str
     period: str
     days_in_month: int
-    monthly_stipend: float
+    monthly_stipend: float | None = 0.0
     expected_clearances: int
     verified_clearances: int
     held_clearances: int
@@ -123,6 +123,30 @@ class BankResolveRequest(BaseModel):
 
 class BankResolveResponse(BaseModel):
     account_number: str
-    account_name: str
+    account_name: str | None = "BENEFICIARY"
     bank_code: str
-    bank_name: str
+    bank_name: str | None = "COMMERCIAL BANK"
+
+
+class PlatformWalletResponse(BaseModel):
+    balance: float
+    currency: str = "NGN"
+    last_updated: datetime | str
+
+
+class WalletTopUpRequest(BaseModel):
+    amount: float = Field(..., gt=0, description="Amount to fund wallet in NGN")
+    redirect_url: str | None = Field(None, description="Optional redirect URL after checkout completion")
+
+
+class WalletTopUpResponse(BaseModel):
+    checkout_url: str
+    reference: str
+    amount: float
+    currency: str = "NGN"
+    session_id: str | None = None
+    status: str = "pending"
+    created_at: datetime | str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+

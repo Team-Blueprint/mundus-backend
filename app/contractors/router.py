@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.deps import get_current_user, require_role
@@ -21,6 +21,7 @@ router = APIRouter(tags=["Contractors"])
 @router.get("/contractors", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
 @router.get("/contractors/all", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
 def list_contractors(
+    response: Response,
     q: str | None = Query(None, description="Search by contractor name or contractor"),
     status_filter: str | None = Query(None, alias="status", description="Filter: critical, overdue, on_schedule, all"),
     needs_attention: bool = Query(False, description="True = only contractors with overdue or critical sites"),
@@ -30,9 +31,11 @@ def list_contractors(
     current_user: User = Depends(require_role([UserRole.AGENCY, UserRole.CONTRACTOR])),
 ):
     """List contractors with site counts and overdue indicators (Agency view & assignment dropdowns)."""
-    return contractor_service.list_contractors_service(
-        db, q=q, status_filter=status_filter, needs_attention=needs_attention, limit=limit, offset=offset, current_user=current_user
+    items, total = contractor_service.list_contractors_service(
+        db, q=q, status_filter=status_filter, needs_attention=needs_attention, limit=limit, offset=offset, current_user=current_user, return_total=True
     )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.post("/contractors", response_model=ContractorResponse, status_code=status.HTTP_201_CREATED)
@@ -50,15 +53,19 @@ def create_contractor(
 
 @router.get("/contractor/sites", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 def get_contractor_sites(
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
     """Retrieve assigned dump points for the logged-in contractor, sorted most overdue first."""
-    return contractor_service.get_contractor_sites_service(db, current_user)
+    sites = contractor_service.get_contractor_sites_service(db, current_user)
+    response.headers["X-Total-Count"] = str(len(sites))
+    return sites
 
 
 @router.get("/contractor/submissions", response_model=list[SubmissionPairResponse], status_code=status.HTTP_200_OK)
 def get_contractor_submissions(
+    response: Response,
     site_id: str | None = Query(None, description="Filter submissions by site ID"),
     status_filter: str | None = Query(None, alias="status", description="Filter: complete, pending, flagged, all"),
     q: str | None = Query(None, description="Search by site name substring"),
@@ -68,9 +75,11 @@ def get_contractor_submissions(
     current_user: User = Depends(require_role([UserRole.CONTRACTOR])),
 ):
     """Contractor check-in history grouped by site and calendar day into before/after clearance pairs."""
-    return contractor_service.get_contractor_submissions_service(
-        db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset
+    items, total = contractor_service.get_contractor_submissions_service(
+        db, current_user, site_id=site_id, status_filter=status_filter, q=q, limit=limit, offset=offset, return_total=True
     )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.get("/contractor/alerts", response_model=list[ContractorAlertResponse], status_code=status.HTTP_200_OK)

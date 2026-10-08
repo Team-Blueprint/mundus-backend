@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.deps import get_current_user, require_role
 from app.auth.models import User, UserRole
-from app.dump_points.schemas import DumpPointCreate, DumpPointUpdate, DumpPointAssign, DumpPointResponse
+from app.dump_points.schemas import DumpPointCreate, DumpPointUpdate, DumpPointAssign, DumpPointResponse, HistoryEventItem
 import app.dump_points.service as dump_point_service
 
 router = APIRouter(prefix="/dump-points", tags=["Dump Points"])
@@ -25,6 +25,7 @@ def create_dump_point(
 @router.get("", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 @router.get("/all", response_model=list[DumpPointResponse], status_code=status.HTTP_200_OK)
 def list_dump_points(
+    response: Response,
     status_filter: str | None = Query(None, alias="status", description="Filter by status: critical, overdue, on_schedule, flagged, all"),
     search: str | None = Query(None, description="Search by site name, code, sector, contractor, or contractor"),
     limit: int = Query(10, ge=1, le=10000, description="Max items to return"),
@@ -33,13 +34,17 @@ def list_dump_points(
     current_user: User = Depends(get_current_user),
 ):
     """List dump points. Contractors only see their assigned sites; agency users see all."""
-    return dump_point_service.list_dump_points(db, current_user, status_filter=status_filter, search_query=search, limit=limit, offset=offset)
+    items, total = dump_point_service.list_dump_points(
+        db, current_user, status_filter=status_filter, search_query=search, limit=limit, offset=offset, return_total=True
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 # --- Static / Explicit Sub-paths (Placed before wildcard /{id}) ---
 
-@router.get("/history/{id}", status_code=status.HTTP_200_OK)
-@router.get("/{id}/history", status_code=status.HTTP_200_OK)
+@router.get("/history/{id}", response_model=list[HistoryEventItem], status_code=status.HTTP_200_OK)
+@router.get("/{id}/history", response_model=list[HistoryEventItem], status_code=status.HTTP_200_OK)
 def get_site_history_timeline(
     id: str,
     db: Session = Depends(get_db),
