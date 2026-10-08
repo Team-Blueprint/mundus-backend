@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     OVERDUE_THRESHOLD_DAYS: int = 10
 
     # Frontend Origin for deep links
-    FRONTEND_ORIGIN: str = "https://usemundus.pxxl.click/contractor/sign-in"
+    FRONTEND_ORIGIN: str = "https://usemundus.pxxl.click"
 
     # Brevo Email Configuration
     BREVO_API_KEY: Optional[str] = None
@@ -42,6 +42,12 @@ class Settings(BaseSettings):
 
     # FCM Web Push
     FCM_SERVER_KEY: Optional[str] = None
+
+    # Bachs Payment Provider Configuration (Sandbox / Test Mode)
+    BACHS_API_KEY: Optional[str] = "sk_sandbox_test"
+    BACHS_BASE_URL: str = "https://sandbox-api.bachs.io"
+    BACHS_WEBHOOK_SECRET: Optional[str] = "whsec_test"
+    BACHS_TEST_MODE: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",

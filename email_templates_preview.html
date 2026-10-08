@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mundus Email Templates Preview</title>
+  <style>
+    :root {
+      --primary: #0b3d2c;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #10b981;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      padding: 2rem;
+    }
+    .header {
+      max-width: 900px;
+      margin: 0 auto 2rem auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      color: #0b3d2c;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .color-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #0b3d2c;
+      display: inline-block;
+    }
+    .nav-tabs {
+      max-width: 900px;
+      margin: 0 auto 1.5rem auto;
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 0.5rem;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 8px 16px;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: #475569;
+    }
+    .tab-btn:hover {
+      background: #e2e8f0;
+    }
+    .tab-btn.active {
+      background: #0b3d2c;
+      color: #ffffff;
+      border-color: #0b3d2c;
+    }
+    .preview-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    .preview-meta {
+      background: #f8fafc;
+      padding: 12px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    .preview-meta strong {
+      color: #1e293b;
+    }
+    .preview-body {
+      padding: 40px 20px;
+      background: #fdfdfd;
+      display: flex;
+      justify-content: center;
+    }
+    .template-pane {
+      display: none;
+      width: 100%;
+    }
+    .template-pane.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>🌿 Mundus Email Templates</h1>
+      <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">Updated with button action color <code style="font-weight: bold; color: #0b3d2c;">#0b3d2c</code></p>
+    </div>
+    <div class="color-chip">
+      <span class="color-dot"></span>
+      <span>Button Color: #0b3d2c</span>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showTab('tab-flagged', this)">1. Dump Point Full Alert</button>
+    <button class="tab-btn" onclick="showTab('tab-reset', this)">2. Password Reset (Link)</button>
+    <button class="tab-btn" onclick="showTab('tab-otp', this)">3. Password Reset (OTP)</button>
+    <button class="tab-btn" onclick="showTab('tab-invite', this)">4. Staff Onboarding</button>
+  </div>
+
+  <div class="preview-container">
+    
+    <!-- Tab 1: Dump Point Flagged Full -->
+    <div id="tab-flagged" class="template-pane active">
+      <div class="preview-meta">
+        <strong>Subject:</strong> [Mundus] Nwaniba Road Dump Point reported full<br>
+        <strong>Recipient:</strong> Assigned Contractor / Operations
+      </div>
+      <div class="preview-body">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: #ffffff;">
+            <h2 style="color: #d97706; margin-top: 0;">⚠️ Dump Point Reported Full</h2>
+            <p>Hello,</p>
+            <p><strong>Adaeze Okoro</strong> has flagged <strong>Nwaniba Road Dump Point (Sector 4 · Uyo Urban Core)</strong> as requiring immediate waste clearance.</p>
+            <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                <p style="margin: 5px 0;"><strong>Site:</strong> Nwaniba Road Dump Point</p>
+                <p style="margin: 5px 0;"><strong>Sector:</strong> Sector 4 · Uyo Urban Core</p>
+                <p style="margin: 5px 0;"><strong>Reported at:</strong> 26 Sep 2026, 01:40 AM</p>
+            </div>
+            
+            <p>Please dispatch field personnel to conduct clearance and complete the before/after check-in verification:</p>
+            <p style="margin: 25px 0;">
+                <a href="#" style="background: #0b3d2c; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">View Site on Mundus Field App</a>
+            </p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Contractor Password Reset Link -->
+    <div id="tab-reset" class="template-pane">
+      <div class="preview-meta">
+        <strong>Subject:</strong> [Mundus] Reset your password<br>
+        <strong>Recipient:</strong> Contractor / Agency User
+      </div>
+      <div class="preview-body">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: #ffffff;">
+            <h2 style="color: #0b3d2c; margin-top: 0;">🔐 Password Reset Request</h2>
+            <p>Hello John Doe,</p>
+            <p>We received a request to reset your Mundus contractor account password. Click the button below to set a new password. This link expires in <strong>1 hour</strong> and can only be used once.</p>
+            <p style="margin: 25px 0;">
+                <a href="#" style="background: #0b3d2c; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+            </p>
+            <p style="color: #64748b; font-size: 13px;">Or copy this link into your browser:<br><a href="#" style="color: #0b3d2c;">https://mundus.akwaibom.gov.ng/auth/reset-password?token=sample_token_xyz</a></p>
+            <p style="color: #64748b; font-size: 13px;">If you did not request a password reset, you can safely ignore this email — your password will not change.</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Password Reset OTP -->
+    <div id="tab-otp" class="template-pane">
+      <div class="preview-meta">
+        <strong>Subject:</strong> [Mundus] Your Password Reset OTP<br>
+        <strong>Recipient:</strong> Mobile / Portal User
+      </div>
+      <div class="preview-body">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: #ffffff;">
+            <h2 style="color: #0b3d2c; margin-top: 0;">🔐 Password Reset Verification</h2>
+            <p>Hello User,</p>
+            <p>We received a request to reset your Mundus account password. Use the verification code below to complete your password reset:</p>
+            <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 8px; margin: 25px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0f172a; font-family: monospace;">849201</span>
+            </div>
+            <p style="color: #475569; font-size: 14px;">This code is valid for <strong>15 minutes</strong> and can only be used once.</p>
+            <p style="color: #64748b; font-size: 13px;">If you did not request a password reset, you can safely ignore this email — your account remains secure.</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Staff Invite -->
+    <div id="tab-invite" class="template-pane">
+      <div class="preview-meta">
+        <strong>Subject:</strong> [Mundus] You've been added as agency staff<br>
+        <strong>Recipient:</strong> New Field Supervisor / Agency Staff
+      </div>
+      <div class="preview-body">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: #ffffff;">
+            <h2 style="color: #0b3d2c; margin-top: 0;">👋 Welcome to Mundus</h2>
+            <p>Hello Ekemini Udoh,</p>
+            <p>You've been added as a staff member on the Mundus Waste Tracking platform. Here are your login details:</p>
+            <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 15px 0; font-family: monospace;">
+                <p style="margin: 5px 0;"><strong>Email:</strong> e.udoh@akwaibom.gov.ng</p>
+                <p style="margin: 5px 0;"><strong>Temporary Password:</strong> Mundus2026!Secure</p>
+            </div>
+            <p>Please log in and change your password immediately.</p>
+            <p style="margin: 25px 0;">
+                <a href="#" style="background: #0b3d2c; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Log In to Mundus</a>
+            </p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="color: #64748b; font-size: 12px;">Mundus Municipal Waste Evacuation System — Akwa Ibom State</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function showTab(tabId, btn) {
+      document.querySelectorAll('.template-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

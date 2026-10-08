@@ -71,7 +71,7 @@ async def invite_staff_service(
     db.commit()
     db.refresh(new_staff)
 
-    login_url = f"{settings.FRONTEND_ORIGIN}/login"
+    login_url = f"{settings.FRONTEND_ORIGIN}/contractor/sign-in"
     subject, html_content, text_content = format_staff_invite_email(
         full_name=data.full_name.strip(),
         email=email,

@@ -13,9 +13,11 @@ import app.reporters.models  # noqa
 import app.contractors.models  # noqa
 import app.agency.models  # noqa
 import app.notifications.models  # noqa
+import app.payouts.models  # noqa
 from app.dump_points.models import DumpPoint
 from app.contractors.models import Contractor, ContractorAlert
 from app.reporters.models import Reporter, ReporterFlag, ReporterStatus
+from app.payouts.models import PayoutStatement, PayoutStatus
 from app.core.security import get_password_hash
 from app.check_ins.models import CheckIn, CheckInType, CheckInStatus
 
@@ -34,18 +36,24 @@ def migrate_db_columns(db: SessionLocal):
 
 
 def seed(db: SessionLocal = None):
-    print("Creating database tables...")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
+
+    target_engine = db.get_bind() if hasattr(db, "get_bind") else engine
+    print(f"Ensuring database tables on {target_engine.url.render_as_string(hide_password=True)}...")
+    Base.metadata.create_all(bind=target_engine)
     try:
         migrate_db_columns(db)
 
         demo_users = [
+            {
+                "email": "supervisor@mundus.org",
+                "password": "Password123!",
+                "full_name": "Emmanuel Udo",
+                "role": UserRole.CONTRACTOR,
+            },
             {
                 "email": "contractor@mundus.org",
                 "password": "Password123!",
@@ -97,29 +105,64 @@ def seed(db: SessionLocal = None):
             else:
                 user_records[udata["email"]] = existing
 
+        supervisor = user_records.get("supervisor@mundus.org")
         emmanuel = user_records.get("contractor@mundus.org")
         blessing = user_records.get("blessing@mundus.org")
         bassey = user_records.get("bassey@mundus.org")
 
-        # Seed Contractors
+        # Seed Contractors with Stipends and Payment Details
         demo_contractors = [
             {
-                "id": uuid.uuid4().hex,
+                "id": "CTR-AK-001",
+                "name": "CleanCity Services",
+                "email": "supervisor@mundus.org",
+                "user_id": supervisor.id if supervisor else None,
+                "monthly_stipend": 50000.0,
+                "bank_name": "Guaranty Trust Bank",
+                "bank_account_number": "0123456789",
+                "bank_account_name": "CleanCity Services Ltd",
+                "bank_code": "058",
+                "payment_provider_recipient_id": "pd_7Kq2mNv4XbR9dLc0",
+                "payment_provider_metadata": {"status": "approved", "is_usable": True},
+            },
+            {
+                "id": "CTR-AK-002",
+                "name": "GreenPath Ltd",
+                "email": "blessing@mundus.org",
+                "user_id": blessing.id if blessing else None,
+                "monthly_stipend": 75000.0,
+                "bank_name": "Zenith Bank",
+                "bank_account_number": "1023456789",
+                "bank_account_name": "Blessing Akpan GreenPath",
+                "bank_code": "057",
+                "payment_provider_recipient_id": "pd_8Lr3nOw5YcS0eMd1",
+                "payment_provider_metadata": {"status": "approved", "is_usable": True},
+            },
+            {
+                "id": "CTR-AK-003",
+                "name": "EcoWaste Management",
+                "email": "bassey@mundus.org",
+                "user_id": bassey.id if bassey else None,
+                "monthly_stipend": 60000.0,
+                "bank_name": "Access Bank",
+                "bank_account_number": "0023456789",
+                "bank_account_name": "Bassey Okon EcoWaste",
+                "bank_code": "044",
+                "payment_provider_recipient_id": "pd_9Ms4oPx6ZdT1fNe2",
+                "payment_provider_metadata": {"status": "approved", "is_usable": True},
+            },
+            {
+                "id": "CTR-AK-004",
                 "name": "Emmanuel Udo",
                 "email": "contractor@mundus.org",
                 "user_id": emmanuel.id if emmanuel else None,
-            },
-            {
-                "id": uuid.uuid4().hex,
-                "name": "Blessing Akpan",
-                "email": "blessing@mundus.org",
-                "user_id": blessing.id if blessing else None,
-            },
-            {
-                "id": uuid.uuid4().hex,
-                "name": "Bassey Okon",
-                "email": "bassey@mundus.org",
-                "user_id": bassey.id if bassey else None,
+                "monthly_stipend": 50000.0,
+                "bank_name": "Guaranty Trust Bank",
+                "bank_account_number": "0123456789",
+                "bank_account_name": "Emmanuel Udo",
+                "bank_code": "058",
+                "payment_provider_recipient_id": "pd_7Kq2mNv4XbR9dLc0",
+                "payment_provider_metadata": {"status": "approved", "is_usable": True},
             },
         ]
 
@@ -311,6 +354,77 @@ def seed(db: SessionLocal = None):
                 )
                 db.add(alert)
                 print("Seeded contractor alert for Nwaniba Road Dump Point")
+
+        # Seed verified check-in pairs for CleanCity Services (Emmanuel Udo)
+        if nwaniba_site and supervisor:
+            # 2 verified clearances earlier this month
+            for day_offset in [5, 12]:
+                visit_time = now - timedelta(days=day_offset)
+                b_hash = f"seed_before_{nwaniba_site.id}_{day_offset}"
+                a_hash = f"seed_after_{nwaniba_site.id}_{day_offset}"
+
+                if not db.query(CheckIn).filter(CheckIn.photo_hash == b_hash).first():
+                    b_ci = CheckIn(
+                        site_id=nwaniba_site.id,
+                        user_id=supervisor.id,
+                        type=CheckInType.BEFORE,
+                        photo_url=f"https://res.cloudinary.com/demo/image/upload/sample_before_{day_offset}.jpg",
+                        photo_hash=b_hash,
+                        latitude=nwaniba_site.latitude,
+                        longitude=nwaniba_site.longitude,
+                        distance_from_site_meters=12.5,
+                        device_timestamp=visit_time,
+                        server_timestamp=visit_time,
+                        status=CheckInStatus.VALID,
+                        flags=[],
+                    )
+                    db.add(b_ci)
+
+                if not db.query(CheckIn).filter(CheckIn.photo_hash == a_hash).first():
+                    a_ci = CheckIn(
+                        site_id=nwaniba_site.id,
+                        user_id=supervisor.id,
+                        type=CheckInType.AFTER,
+                        photo_url=f"https://res.cloudinary.com/demo/image/upload/sample_after_{day_offset}.jpg",
+                        photo_hash=a_hash,
+                        latitude=nwaniba_site.latitude,
+                        longitude=nwaniba_site.longitude,
+                        distance_from_site_meters=15.0,
+                        device_timestamp=visit_time + timedelta(hours=1),
+                        server_timestamp=visit_time + timedelta(hours=1),
+                        status=CheckInStatus.VALID,
+                        flags=[],
+                    )
+                    db.add(a_ci)
+
+        # Seed sample historical payout statement for CleanCity
+        if clean_city:
+            prev_period = (now - timedelta(days=35)).strftime("%Y-%m")
+            existing_po = db.query(PayoutStatement).filter(
+                PayoutStatement.contractor_id == clean_city.id,
+                PayoutStatement.period == prev_period,
+            ).first()
+            if not existing_po:
+                po = PayoutStatement(
+                    id=uuid.uuid4().hex,
+                    contractor_id=clean_city.id,
+                    period=prev_period,
+                    monthly_stipend=50000.0,
+                    expected_clearances=4,
+                    verified_clearances=4,
+                    held_clearances=0,
+                    calculated_payout_amount=50000.0,
+                    status=PayoutStatus.SUCCESS,
+                    unique_payout_reference=f"MND-PO-{prev_period.replace('-', '')}-CTR001-DEMO",
+                    transfer_code="pay_demo_7Kq2mNv4XbR9dLc0",
+                    approved_by_id=user_records.get("agency@mundus.org").id if "agency@mundus.org" in user_records else None,
+                    approved_at=now - timedelta(days=5),
+                    payment_provider="bachs",
+                    payment_provider_status="completed",
+                    payment_provider_response={"status": "completed", "reference": f"MND-PO-{prev_period.replace('-', '')}-CTR001-DEMO"},
+                )
+                db.add(po)
+                print(f"Seeded historical payout statement for {prev_period}")
 
         db.commit()
         print("Database seed completed successfully!")

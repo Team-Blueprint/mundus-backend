@@ -56,4 +56,28 @@
 ### 6. Validation, Server Rules & Verification (§7 & §8)
 - [x] **Model Validations**: String length, 11-digit NG phone validation, and coordinate bounds across all endpoints.
 - [x] **Database Seed & Migrations**: Updated seed data with contractors, code/sector dump points, nominated reporters, alerts, and automatic SQLite migrations.
-- [x] **Automated Test Suite**: 25/25 pytest integration tests passing cleanly.
+- [x] **Automated Test Suite**: 36/36 pytest integration tests passing cleanly.
+
+---
+
+## Phase 7: Monthly Contractor Payouts via Bachs Integration (Completed)
+
+> **Core Scope Definition:**
+> **Mundus does not create a new compensation stream. It calculates the portion of an existing monthly contractor stipend earned through verified service and provides the agency with a controlled mechanism to release that amount.**
+> The demo payment integration operates in **test/sandbox mode** with **Bachs** (`https://sandbox-api.bachs.io`) and **does not move real money**.
+
+- [x] **Contractor Model Extension**: Added `monthly_stipend`, `bank_name`, `bank_account_number`, `bank_account_name`, `bank_code`, `payment_provider_recipient_id`, and `payment_provider_metadata` to `Contractor` model and schemas.
+- [x] **Payout Statement & Audit Log Models**: Created `PayoutStatement` with full snapshot calculation fields (`expected_clearances`, `verified_clearances`, `held_clearances`, `calculated_payout_amount`), immutable references (`MND-PO-YYYYMM-...`), `PayoutStatus` enum (`DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `PROCESSING`, `SUCCESS`, `FAILED`, `CANCELLED`), and `PayoutAuditLog`.
+- [x] **Mathematical Clearance & Payout Formula Service**:
+  - `expected_clearances = sum(floor(days_in_month / site.interval_days))` across all assigned dump points.
+  - `verified_clearances`: Verified check-in pairs (before + after photo, geofence distance <= 100m, photo hash deduplicated, unflagged).
+  - `held_clearances`: Flagged visits placed on hold for review.
+  - `payout = min(monthly_stipend * (verified_clearances / expected_clearances), monthly_stipend)`.
+- [x] **Progressive In-Month Earnings**: Implemented `GET /contractor/earnings` allowing contractors to view progressive earnings during the month without triggering transfers.
+- [x] **Bachs Client & Recipient Management**: Created Bachs sandbox API client (`bachs_client.py`) with destination recipient creation (`POST /v1/payouts/destinations`), account resolution (`/payouts/resolve-account`), bank directory lookup (`/payouts/banks`), and transfer initiation (`POST /v1/payouts`).
+- [x] **Idempotent Agency Approval**: Implemented `POST /agency/payouts/{id}/approve` with idempotency token verification, preventing duplicate transfers on retries or double clicks.
+- [x] **Secure Webhook Handling**: Implemented `POST /payouts/webhooks/bachs` with HMAC-SHA256 signature verification (`X-Bachs-Signature-V2`), idempotently processing `payout.paid` -> `SUCCESS` and `payout.failed` -> `FAILED`.
+- [x] **Held Clearances Review Queue**: Implemented `GET /agency/clearances/held` and `POST /agency/clearances/{site_id}/{date_str}/approve` allowing agencies to inspect flagged visits and clear them into verified count.
+- [x] **CSV Export & Printable Voucher**: Implemented `GET /agency/payouts/export` and `GET /agency/payouts/{id}/receipt`.
+- [x] **Agency Payments Dashboard UI**: Implemented rich responsive UI served at `/agency/payments/ui` and `/payments` with real-time KPI metrics, statement review modal, held clearance drawer, and sandbox webhook simulator.
+- [x] **Test Suite**: 36 comprehensive pytest tests passing with 100% success rate.

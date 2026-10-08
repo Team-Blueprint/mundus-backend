@@ -13,6 +13,7 @@ from app.reporters.router import router as reporters_router
 from app.contractors.router import router as contractors_router
 from app.agency.router import router as agency_router
 from app.notifications.router import router as notifications_router
+from app.payouts.router import router as payouts_router
 
 from contextlib import asynccontextmanager
 from app.database import engine, Base
@@ -55,6 +56,30 @@ async def lifespan(app: FastAPI):
                     conn.commit()
                 if "invited_by_id" not in user_cols:
                     conn.execute(text("ALTER TABLE users ADD COLUMN invited_by_id INTEGER;"))
+                    conn.commit()
+
+                cursor.execute("PRAGMA table_info(contractors);")
+                c_cols = [row[1] for row in cursor.fetchall()]
+                if "monthly_stipend" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN monthly_stipend FLOAT NOT NULL DEFAULT 0.0;"))
+                    conn.commit()
+                if "bank_name" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN bank_name VARCHAR(100);"))
+                    conn.commit()
+                if "bank_account_number" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN bank_account_number VARCHAR(20);"))
+                    conn.commit()
+                if "bank_account_name" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN bank_account_name VARCHAR(255);"))
+                    conn.commit()
+                if "bank_code" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN bank_code VARCHAR(10);"))
+                    conn.commit()
+                if "payment_provider_recipient_id" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN payment_provider_recipient_id VARCHAR(100);"))
+                    conn.commit()
+                if "payment_provider_metadata" not in c_cols:
+                    conn.execute(text("ALTER TABLE contractors ADD COLUMN payment_provider_metadata JSON DEFAULT '{}';"))
                     conn.commit()
         except Exception as e:
             logger.warning(f"Lifespan migration check notice: {e}")
@@ -109,6 +134,7 @@ app.include_router(reporters_router)
 app.include_router(contractors_router)
 app.include_router(agency_router)
 app.include_router(notifications_router)
+app.include_router(payouts_router)
 
 
 

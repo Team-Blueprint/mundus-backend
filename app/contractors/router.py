@@ -18,6 +18,7 @@ router = APIRouter(tags=["Contractors"])
 
 # --- Agency Contractor Directory ---
 
+@router.get("/contractors", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
 @router.get("/contractors/all", response_model=list[ContractorResponse], status_code=status.HTTP_200_OK)
 def list_contractors(
     q: str | None = Query(None, description="Search by contractor name or contractor"),
@@ -34,6 +35,7 @@ def list_contractors(
     )
 
 
+@router.post("/contractors", response_model=ContractorResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/contractors/new", response_model=ContractorResponse, status_code=status.HTTP_201_CREATED)
 def create_contractor(
     data: ContractorCreate,

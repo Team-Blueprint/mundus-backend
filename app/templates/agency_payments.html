@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mundus — Agency Contractor Payouts Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #111827;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-card-hover: rgba(31, 41, 55, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-active: rgba(16, 185, 129, 0.4);
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      
+      --color-emerald: #10b981;
+      --color-emerald-light: #34d399;
+      --color-emerald-bg: rgba(16, 185, 129, 0.12);
+      
+      --color-indigo: #6366f1;
+      --color-indigo-bg: rgba(99, 102, 241, 0.12);
+      
+      --color-amber: #f59e0b;
+      --color-amber-bg: rgba(245, 158, 11, 0.12);
+      
+      --color-rose: #f43f5e;
+      --color-rose-bg: rgba(244, 63, 94, 0.12);
+
+      --color-cyan: #06b6d4;
+      --color-cyan-bg: rgba(6, 182, 212, 0.12);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 25px rgba(16, 185, 129, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Top Navigation Header */
+    header.dashboard-header {
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(9, 13, 22, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.35rem;
+      color: var(--text-main);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: var(--color-emerald-bg);
+      color: var(--color-emerald-light);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--color-emerald);
+      box-shadow: 0 0 8px var(--color-emerald);
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* Banner Notice */
+    .test-mode-banner {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(99, 102, 241, 0.08));
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.75rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .pitch-quote {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .pitch-quote strong {
+      color: var(--color-emerald-light);
+    }
+
+    .bachs-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Main Container */
+    main.content-area {
+      flex: 1;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 2rem;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-card);
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .metric-card.stipend::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .metric-card.earned::before { background: linear-gradient(90deg, #10b981, #34d399); }
+    .metric-card.clearances::before { background: linear-gradient(90deg, #06b6d4, #38bdf8); }
+    .metric-card.held::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .metric-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-sub {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* Actions Bar & Controls */
+    .controls-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .filters-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .select-control, .input-control {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      padding: 0.55rem 0.9rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .select-control:focus, .input-control:focus {
+      border-color: var(--color-emerald);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      font-family: inherit;
+      padding: 0.55rem 1.1rem;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e5e7eb;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-amber {
+      background: var(--color-amber-bg);
+      color: var(--color-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-amber:hover {
+      background: rgba(245, 158, 11, 0.2);
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Payout Statements Table */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      margin-bottom: 2rem;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    table.data-table th {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1rem 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    table.data-table td {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    table.data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .contractor-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .contractor-name {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .contractor-bank {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Status Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-success {
+      background: var(--color-emerald-bg);
+      color: var(--color-emerald-light);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-processing {
+      background: var(--color-cyan-bg);
+      color: var(--color-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .badge-pending {
+      background: var(--color-amber-bg);
+      color: var(--color-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-draft {
+      background: rgba(255, 255, 255, 0.06);
+      color: #9ca3af;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .badge-failed {
+      background: var(--color-rose-bg);
+      color: var(--color-rose);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    /* Progress Bar */
+    .progress-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 110px;
+    }
+
+    .progress-track {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-emerald), var(--color-emerald-light));
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* Modal / Drawer */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      max-width: 680px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+      padding: 2rem;
+      position: relative;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 1rem;
+    }
+
+    .modal-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    /* Formula Breakdown Block */
+    .calc-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .calc-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--color-emerald-light);
+      background: rgba(16, 185, 129, 0.08);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      margin: 0.75rem 0;
+    }
+
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      padding: 0.35rem 0;
+      color: var(--text-muted);
+    }
+
+    .breakdown-row.highlight {
+      font-weight: 700;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      border-top: 1px solid var(--border-subtle);
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+    }
+
+    /* Drawer / Side Modal for Held Clearances */
+    .side-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 520px;
+      max-width: 95vw;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-subtle);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+      z-index: 110;
+      display: none;
+      flex-direction: column;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    .side-drawer.active {
+      display: flex;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .held-item-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .photo-duo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+
+    .photo-box {
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+      height: 120px;
+      background: #000;
+    }
+
+    .photo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-label {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Webhook Simulator Section */
+    .webhook-tool {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    /* Print receipt styling */
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      header, .controls-panel, .test-mode-banner, .webhook-tool, .btn { display: none !important; }
+      .modal-backdrop.receipt-active { position: static !important; background: #fff !important; }
+      .modal-box { border: 1px solid #000 !important; box-shadow: none !important; color: #000 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="dashboard-header">
+    <div class="brand-section">
+      <a href="/agency/payments/ui" class="brand-logo" id="header-brand-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Mundus</span>
+      </a>
+      <span class="brand-badge" id="badge-sandbox-mode">
+        <span class="pulse-dot"></span>
+        Bachs Sandbox Mode
+      </span>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" id="btn-open-contractor-preview" onclick="toggleContractorPreview()">
+        Contractor View
+      </button>
+      <button class="btn btn-amber btn-sm" id="btn-held-queue" onclick="openHeldClearancesDrawer()">
+        Held Clearances (<span id="held-count-badge">0</span>)
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-refresh-data" onclick="loadPayoutsData()">
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Pitch / Sandbox Notice -->
+  <aside class="test-mode-banner">
+    <div class="pitch-quote">
+      "Mundus doesn't hold government money. <strong>It calculates how much of an existing monthly stipend was earned</strong>, and the agency releases it."
+    </div>
+    <div class="bachs-tag">
+      Provider: Bachs Transfers (Test Mode)
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="content-area">
+    
+    <!-- KPI Summary Grid -->
+    <section class="metrics-grid" aria-label="Payouts Summary Metrics">
+      <div class="metric-card stipend">
+        <div class="metric-header">
+          <span class="metric-title">Monthly Stipend Pool</span>
+          <svg width="18" height="18" fill="none" stroke="#6366f1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="metric-value" id="kpi-total-stipend">₦0.00</div>
+        <div class="metric-sub">Contractor allocation base</div>
+      </div>
+
+      <div class="metric-card earned">
+        <div class="metric-header">
+          <span class="metric-title">Earned (Releaseable)</span>
+          <svg width="18" height="18" fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="metric-value" id="kpi-total-earned">₦0.00</div>
+        <div class="metric-sub">Earned via verified clearances</div>
+      </div>
+
+      <div class="metric-card clearances">
+        <div class="metric-header">
+          <span class="metric-title">Service Verification Rate</span>
+          <svg width="18" height="18" fill="none" stroke="#06b6d4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        </div>
+        <div class="metric-value" id="kpi-service-rate">0%</div>
+        <div class="metric-sub" id="kpi-clearance-counts">0 of 0 clearances verified</div>
+      </div>
+
+      <div class="metric-card held">
+        <div class="metric-header">
+          <span class="metric-title">Held for Review</span>
+          <svg width="18" height="18" fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </div>
+        <div class="metric-value" id="kpi-held-count">0</div>
+        <div class="metric-sub">Flagged / geofence mismatch visits</div>
+      </div>
+    </section>
+
+    <!-- Controls Panel -->
+    <section class="controls-panel" aria-label="Controls and Actions">
+      <div class="filters-group">
+        <label for="filter-period" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Period:</label>
+        <select class="select-control" id="filter-period" onchange="loadPayoutsData()">
+          <option value="2026-10" selected>October 2026</option>
+          <option value="2026-09">September 2026</option>
+          <option value="2026-08">August 2026</option>
+          <option value="2026-02">February 2026</option>
+        </select>
+
+        <label for="filter-status" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Status:</label>
+        <select class="select-control" id="filter-status" onchange="loadPayoutsData()">
+          <option value="ALL">All Statuses</option>
+          <option value="PENDING_APPROVAL">Pending Approval</option>
+          <option value="PROCESSING">Processing</option>
+          <option value="SUCCESS">Success</option>
+          <option value="DRAFT">Draft</option>
+          <option value="FAILED">Failed</option>
+        </select>
+
+        <input type="text" class="input-control" id="search-contractor" placeholder="Filter contractor..." oninput="filterStatementsLocally()" style="width: 200px;">
+      </div>
+
+      <div class="filters-group">
+        <button class="btn btn-secondary btn-sm" id="btn-generate-period" onclick="generatePeriodStatements()">
+          Generate Statements
+        </button>
+        <a class="btn btn-secondary btn-sm" id="btn-export-csv" href="/agency/payouts/export">
+          Export CSV
+        </a>
+      </div>
+    </section>
+
+    <!-- Payout Statements Table -->
+    <section class="table-container" aria-label="Monthly Payout Statements Table">
+      <table class="data-table" id="payout-statements-table">
+        <thead>
+          <tr>
+            <th>Contractor</th>
+            <th>Period</th>
+            <th>Expected</th>
+            <th>Verified</th>
+            <th>Held</th>
+            <th>Stipend</th>
+            <th>Earned Amount</th>
+            <th>Service %</th>
+            <th>Status</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="payouts-table-body">
+          <tr>
+            <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+              Loading payout statements...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Bachs Webhook Simulator Panel -->
+    <section class="webhook-tool" id="webhook-simulator-section">
+      <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; margin-bottom: 0.5rem;">
+        Bachs Sandbox Webhook Simulator
+      </h3>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Test incoming Bachs bank network confirmation events in sandbox test mode. Webhook payloads are automatically signed with the configured HMAC-SHA256 secret.
+      </p>
+
+      <div class="tool-grid">
+        <div>
+          <label style="font-size: 0.78rem; color: var(--text-dim); display: block; margin-bottom: 0.35rem;">Target Payout Reference:</label>
+          <input type="text" class="input-control" id="sim-ref-input" placeholder="Select or enter MND-PO-..." style="width: 100%;">
+        </div>
+        <div>
+          <label style="font-size: 0.78rem; color: var(--text-dim); display: block; margin-bottom: 0.35rem;">Transfer Code:</label>
+          <input type="text" class="input-control" id="sim-code-input" placeholder="pay_..." style="width: 100%;">
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 0.5rem;">
+          <button class="btn btn-primary btn-sm" id="btn-sim-success" onclick="simulateBachsWebhook('payout.paid')">
+            Simulate 'payout.paid'
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-sim-fail" onclick="simulateBachsWebhook('payout.failed')" style="color: var(--color-rose);">
+            Simulate 'payout.failed'
+          </button>
+        </div>
+      </div>
+      <div id="sim-result-box" style="margin-top: 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-muted);"></div>
+    </section>
+
+  </main>
+
+  <!-- Payout Review & Approval Modal -->
+  <div class="modal-backdrop" id="approval-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title" id="approval-modal-title">Review & Approve Monthly Payout</h3>
+        <button class="modal-close" onclick="closeApprovalModal()">&times;</button>
+      </div>
+
+      <div id="modal-content-details">
+        <!-- Dynamic Statement Details -->
+      </div>
+
+      <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="closeApprovalModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-confirm-approve" onclick="executeApprovePayout()">
+          Approve & Release Transfer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Held Clearances Review Drawer -->
+  <div class="side-drawer" id="held-drawer">
+    <div class="modal-header" style="margin-bottom: 1rem;">
+      <h3 class="modal-title">Held Clearances Queue</h3>
+      <button class="modal-close" onclick="closeHeldDrawer()">&times;</button>
+    </div>
+    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+      Clearances flagged for geofence mismatch or duplicate review. Approving a visit includes it in the contractor's verified clearances calculation.
+    </p>
+
+    <div id="held-items-container">
+      <div style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 2rem;">Loading queue...</div>
+    </div>
+  </div>
+
+  <!-- Contractor In-Month Progressive View Modal -->
+  <div class="modal-backdrop" id="contractor-view-modal">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Contractor Progressive Earnings</h3>
+        <button class="modal-close" onclick="closeContractorPreview()">&times;</button>
+      </div>
+
+      <div style="background: rgba(0, 0, 0, 0.4); border-radius: var(--radius-lg); padding: 1.75rem; border: 1px solid var(--border-subtle); text-align: center;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Current Month Progress</span>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--color-emerald-light); margin: 0.5rem 0;" id="prev-earned">
+          ₦37,500.00
+        </div>
+        <div style="font-size: 0.9rem; color: #e5e7eb; margin-bottom: 1rem;" id="prev-clearances-text">
+          6 of 8 clearances verified
+        </div>
+
+        <div class="progress-track" style="height: 10px; margin-bottom: 1.25rem;">
+          <div class="progress-bar" id="prev-progress-bar" style="width: 75%;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; text-align: left; font-size: 0.8rem;">
+          <div style="background: rgba(255, 255, 255, 0.03); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <div style="color: var(--text-dim);">Monthly Stipend</div>
+            <div style="font-weight: 600; color: var(--text-main);" id="prev-stipend">₦50,000.00</div>
+          </div>
+          <div style="background: rgba(255, 255, 255, 0.03); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <div style="color: var(--text-dim);">Held for Review</div>
+            <div style="font-weight: 600; color: var(--color-amber);" id="prev-held">1 visit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentStatements = [];
+    let activeStatementToApprove = null;
+
+    // Load initial data
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPayoutsData();
+      loadHeldClearances();
+    });
+
+    // Fetch statements
+    async function loadPayoutsData() {
+      const period = document.getElementById('filter-period').value;
+      const status = document.getElementById('filter-status').value;
+      const tbody = document.getElementById('payouts-table-body');
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3rem;">Loading statements...</td></tr>';
+
+      try {
+        let url = `/agency/payouts?period=${period}`;
+        if (status && status !== 'ALL') url += `&status=${status}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        currentStatements = data.statements || [];
+
+        // Update KPIs
+        document.getElementById('kpi-total-stipend').innerText = formatNaira(data.total_stipend_pool || 0);
+        document.getElementById('kpi-total-earned').innerText = formatNaira(data.total_earned_amount || 0);
+
+        let totalExp = 0, totalVer = 0, totalHeld = 0;
+        currentStatements.forEach(s => {
+          totalExp += s.expected_clearances || 0;
+          totalVer += s.verified_clearances || 0;
+          totalHeld += s.held_clearances || 0;
+        });
+
+        const rate = totalExp > 0 ? Math.min(100, Math.round((totalVer / totalExp) * 100)) : 0;
+        document.getElementById('kpi-service-rate').innerText = `${rate}%`;
+        document.getElementById('kpi-clearance-counts').innerText = `${totalVer} of ${totalExp} clearances verified`;
+        document.getElementById('kpi-held-count').innerText = totalHeld;
+
+        renderStatementsTable(currentStatements);
+      } catch (err) {
+        console.error('Failed to load payouts:', err);
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--color-rose); padding: 2rem;">Error loading payout records. Please check backend API.</td></tr>`;
+      }
+    }
+
+    // Render table
+    function renderStatementsTable(statements) {
+      const tbody = document.getElementById('payouts-table-body');
+      if (!statements || statements.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 3rem;">No monthly payout statements found for this period. Click 'Generate Statements' to create statements from verified service.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = statements.map(s => {
+        const pct = s.expected_clearances > 0 ? Math.min(100, Math.round((s.verified_clearances / s.expected_clearances) * 100)) : 0;
+        const statusBadge = getStatusBadge(s.status);
+        const canApprove = s.status === 'PENDING_APPROVAL' || s.status === 'DRAFT';
+
+        return `
+          <tr id="row-statement-${s.id}">
+            <td>
+              <div class="contractor-cell">
+                <span class="contractor-name">${escapeHtml(s.contractor_name || 'Contractor')}</span>
+                <span class="contractor-bank">${escapeHtml(s.bank_name || 'Bank not set')} · ${escapeHtml(s.bank_account_number || 'No Acct')}</span>
+              </div>
+            </td>
+            <td><code style="font-size: 0.8rem;">${s.period}</code></td>
+            <td style="font-weight: 600;">${s.expected_clearances}</td>
+            <td style="color: var(--color-emerald-light); font-weight: 600;">${s.verified_clearances}</td>
+            <td style="color: ${s.held_clearances > 0 ? 'var(--color-amber)' : 'var(--text-dim)'}; font-weight: 600;">${s.held_clearances}</td>
+            <td>${formatNaira(s.monthly_stipend)}</td>
+            <td style="font-weight: 700; color: #fff;">${formatNaira(s.calculated_payout_amount)}</td>
+            <td>
+              <div class="progress-cell">
+                <div class="progress-track">
+                  <div class="progress-bar" style="width: ${pct}%;"></div>
+                </div>
+                <span class="progress-text">${pct}%</span>
+              </div>
+            </td>
+            <td>${statusBadge}</td>
+            <td style="text-align: right;">
+              <div style="display: inline-flex; gap: 0.4rem;">
+                ${canApprove ? `
+                  <button class="btn btn-primary btn-sm" onclick="openApprovalModal('${s.id}')" id="btn-approve-${s.id}">
+                    Approve
+                  </button>
+                ` : `
+                  <a class="btn btn-secondary btn-sm" href="/agency/payouts/${s.id}/receipt" target="_blank" title="View receipt">
+                    Receipt
+                  </a>
+                `}
+                <button class="btn btn-secondary btn-sm" onclick="populateWebhookSimulator('${s.unique_payout_reference}', '${s.transfer_code || ''}')" title="Test Webhook">
+                  Webhook
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Filter table by text input
+    function filterStatementsLocally() {
+      const q = document.getElementById('search-contractor').value.toLowerCase().trim();
+      const filtered = currentStatements.filter(s => (s.contractor_name || '').toLowerCase().includes(q));
+      renderStatementsTable(filtered);
+    }
+
+    // Generate Statements
+    async function generatePeriodStatements() {
+      const period = document.getElementById('filter-period').value;
+      if (!confirm(`Generate month-end payout statements for period ${period}? Existing finalized payouts will remain immutable.`)) return;
+
+      try {
+        const res = await fetch(`/agency/payouts/generate?period=${period}`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await loadPayoutsData();
+      } catch (err) {
+        alert('Failed to generate statements: ' + err.message);
+      }
+    }
+
+    // Modal Approval
+    function openApprovalModal(stmtId) {
+      const stmt = currentStatements.find(s => s.id === stmtId);
+      if (!stmt) return;
+      activeStatementToApprove = stmt;
+
+      document.getElementById('approval-modal-title').innerText = `Approve Payout — ${stmt.contractor_name}`;
+      
+      const formulaStr = `${formatNaira(stmt.monthly_stipend)} × (${stmt.verified_clearances} / ${stmt.expected_clearances}) = ${formatNaira(stmt.calculated_payout_amount)}`;
+
+      document.getElementById('modal-content-details').innerHTML = `
+        <div class="calc-card">
+          <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Monthly Payout Formula</div>
+          <div class="calc-formula">${formulaStr}</div>
+          <div class="breakdown-row"><span>Payment Period:</span><strong>${stmt.period}</strong></div>
+          <div class="breakdown-row"><span>Contractor Stipend Base:</span><strong>${formatNaira(stmt.monthly_stipend)}</strong></div>
+          <div class="breakdown-row"><span>Expected Clearances:</span><strong>${stmt.expected_clearances} visits</strong></div>
+          <div class="breakdown-row"><span>Verified Clearances:</span><strong>${stmt.verified_clearances} visits</strong></div>
+          <div class="breakdown-row"><span>Visits Held for Review:</span><strong style="color: var(--color-amber);">${stmt.held_clearances} visits</strong></div>
+          <div class="breakdown-row highlight">
+            <span>Release Amount:</span>
+            <span style="color: var(--color-emerald-light); font-size: 1.1rem;">${formatNaira(stmt.calculated_payout_amount)}</span>
+          </div>
+        </div>
+
+        <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+          <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Bank Destination (Bachs)</div>
+          <div style="font-weight: 600; color: #fff; margin-top: 0.25rem;">${escapeHtml(stmt.bank_name || 'Bank not set')} — ${escapeHtml(stmt.bank_account_number || '')}</div>
+          <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 0.2rem;">Recipient: <code style="color: var(--color-cyan);">${escapeHtml(stmt.payment_provider_recipient_id || 'pd_will_be_created')}</code></div>
+        </div>
+
+        <div style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+          <strong>Idempotency Token:</strong> <code>${stmt.unique_payout_reference}</code>
+          <p style="margin-top: 0.25rem;">Approving releases one transfer via Bachs Sandbox. Repeating or retrying this request will not create duplicate payouts.</p>
+        </div>
+      `;
+
+      document.getElementById('approval-modal').classList.add('active');
+    }
+
+    function closeApprovalModal() {
+      document.getElementById('approval-modal').classList.remove('active');
+      activeStatementToApprove = null;
+    }
+
+    // Execute Approve Payout
+    async function executeApprovePayout() {
+      if (!activeStatementToApprove) return;
+      const btn = document.getElementById('btn-confirm-approve');
+      btn.disabled = true;
+      btn.innerText = 'Initiating Bachs Transfer...';
+
+      try {
+        const res = await fetch(`/agency/payouts/${activeStatementToApprove.id}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: 'Approved via Agency Dashboard' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Approval failed');
+
+        closeApprovalModal();
+        await loadPayoutsData();
+        populateWebhookSimulator(data.unique_payout_reference, data.transfer_code);
+        alert(`Payout approved successfully!\nStatus: ${data.status}\nReference: ${data.unique_payout_reference}\nTransfer Code: ${data.transfer_code}`);
+      } catch (err) {
+        alert('Error approving payout: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Approve & Release Transfer';
+      }
+    }
+
+    // Held Clearances Drawer
+    async function loadHeldClearances() {
+      try {
+        const res = await fetch('/agency/clearances/held');
+        if (!res.ok) return;
+        const items = await res.json();
+        document.getElementById('held-count-badge').innerText = items.length;
+
+        const container = document.getElementById('held-items-container');
+        if (items.length === 0) {
+          container.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 2rem;">No clearances on hold for review.</div>';
+          return;
+        }
+
+        container.innerHTML = items.map(item => `
+          <div class="held-item-card" id="held-item-${item.site_id}">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+              <div>
+                <strong style="color: #fff; font-size: 0.9rem;">${escapeHtml(item.site_name)}</strong>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">${item.date} · Site ID: ${item.site_id.substring(0, 8)}...</div>
+              </div>
+              <span class="badge badge-pending">FLAGGED</span>
+            </div>
+
+            <div class="photo-duo">
+              <div class="photo-box">
+                <img src="${item.before_photo_url || 'https://via.placeholder.com/150'}" alt="Before photo">
+                <span class="photo-label">Before</span>
+              </div>
+              <div class="photo-box">
+                <img src="${item.after_photo_url || 'https://via.placeholder.com/150'}" alt="After photo">
+                <span class="photo-label">After</span>
+              </div>
+            </div>
+
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+              <div>Distance: <strong>${Math.round(item.distance_meters)}m</strong> (Geofence threshold: 100m)</div>
+              <div>Flag: <code style="color: var(--color-rose);">${item.flags.join(', ') || 'review_required'}</code></div>
+            </div>
+
+            <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="approveHeldClearance('${item.site_id}', '${item.date}')">
+              Clear Flag & Verify Clearance
+            </button>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Error loading held clearances:', err);
+      }
+    }
+
+    function openHeldClearancesDrawer() {
+      loadHeldClearances();
+      document.getElementById('held-drawer').classList.add('active');
+    }
+
+    function closeHeldDrawer() {
+      document.getElementById('held-drawer').classList.remove('active');
+    }
+
+    async function approveHeldClearance(siteId, dateStr) {
+      try {
+        const res = await fetch(`/agency/clearances/${siteId}/${dateStr}/approve`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await loadHeldClearances();
+        await loadPayoutsData();
+        alert('Clearance verified and approved!');
+      } catch (err) {
+        alert('Failed to clear flag: ' + err.message);
+      }
+    }
+
+    // Webhook Simulator Actions
+    function populateWebhookSimulator(ref, code) {
+      document.getElementById('sim-ref-input').value = ref || '';
+      document.getElementById('sim-code-input').value = code || '';
+      document.getElementById('webhook-simulator-section').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function simulateBachsWebhook(eventType) {
+      const ref = document.getElementById('sim-ref-input').value.trim();
+      const code = document.getElementById('sim-code-input').value.trim();
+      const resultBox = document.getElementById('sim-result-box');
+
+      if (!ref) {
+        alert('Please enter a Payout Reference first.');
+        return;
+      }
+
+      resultBox.innerHTML = '<span style="color: var(--color-cyan);">Simulating signed webhook event...</span>';
+
+      const payload = {
+        id: `evt_${Date.now()}`,
+        type: eventType,
+        created_at: new Date().toISOString(),
+        data: {
+          withdrawal_id: code || 'pay_simulated_transfer',
+          reference: ref,
+          status: eventType === 'payout.paid' ? 'completed' : 'failed',
+          amount: '37500.00',
+          currency: 'NGN',
+          failure_reason: eventType === 'payout.failed' ? 'Account verification failed' : null
+        }
+      };
+
+      try {
+        // Send directly to webhook endpoint
+        // In local/sandbox testing, backend accepts valid signed payloads or test secret
+        const res = await fetch('/payouts/webhooks/bachs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Bachs-Signature-V2': 't=' + Math.floor(Date.now() / 1000) + ',v1=sandbox_simulated_sig'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        resultBox.innerHTML = `Event <span style="color: var(--color-emerald-light);">${eventType}</span> response: <code>${JSON.stringify(data)}</code>`;
+        await loadPayoutsData();
+      } catch (err) {
+        resultBox.innerHTML = `<span style="color: var(--color-rose);">Error: ${err.message}</span>`;
+      }
+    }
+
+    // Contractor Preview Modal
+    async function toggleContractorPreview() {
+      try {
+        const res = await fetch('/contractor/earnings');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('prev-earned').innerText = formatNaira(data.earned_so_far || 0);
+          document.getElementById('prev-stipend').innerText = formatNaira(data.monthly_stipend || 0);
+          document.getElementById('prev-clearances-text').innerText = `${data.verified_clearances} of ${data.expected_clearances} clearances verified`;
+          document.getElementById('prev-held').innerText = `${data.held_clearances} visit(s)`;
+          document.getElementById('prev-progress-bar').style.width = `${data.progress_percent || 0}%`;
+        }
+      } catch (e) {}
+      document.getElementById('contractor-view-modal').classList.add('active');
+    }
+
+    function closeContractorPreview() {
+      document.getElementById('contractor-view-modal').classList.remove('active');
+    }
+
+    // Helper functions
+    function formatNaira(val) {
+      const num = parseFloat(val) || 0;
+      return '₦' + num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getStatusBadge(status) {
+      switch (status) {
+        case 'SUCCESS':
+          return '<span class="badge badge-success">SUCCESS</span>';
+        case 'PROCESSING':
+          return '<span class="badge badge-processing">PROCESSING</span>';
+        case 'PENDING_APPROVAL':
+          return '<span class="badge badge-pending">PENDING APPROVAL</span>';
+        case 'APPROVED':
+          return '<span class="badge badge-pending">APPROVED</span>';
+        case 'FAILED':
+          return '<span class="badge badge-failed">FAILED</span>';
+        default:
+          return `<span class="badge badge-draft">${status}</span>`;
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

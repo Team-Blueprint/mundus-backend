@@ -8,12 +8,24 @@ class ContractorCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
     email: EmailStr
     password: str = Field(..., min_length=6)
+    monthly_stipend: float | None = 0.0
+    bank_name: str | None = None
+    bank_account_number: str | None = None
+    bank_account_name: str | None = None
+    bank_code: str | None = None
 
 
 class ContractorResponse(BaseModel):
     id: str
     name: str
     email: str
+    monthly_stipend: float = 0.0
+    bank_name: str | None = None
+    bank_account_number: str | None = None
+    bank_account_name: str | None = None
+    bank_code: str | None = None
+    payment_provider_recipient_id: str | None = None
+    is_payout_ready: bool = False
     site_count: int = 0
     overdue: int = 0
     critical: int = 0

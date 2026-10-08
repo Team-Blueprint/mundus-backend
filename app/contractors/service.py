@@ -45,20 +45,47 @@ def create_contractor_service(db: Session, data: ContractorCreate) -> Contractor
     db.refresh(contractor_user)
 
     # 4. Create Contractor record
+    stipend_val = float(data.monthly_stipend or 0.0)
     contractor = Contractor(
         id=uuid.uuid4().hex,
         name=data.name.strip(),
         email=data.email.strip().lower(),
         user_id=contractor_user.id,
+        monthly_stipend=stipend_val,
+        bank_name=data.bank_name,
+        bank_account_number=data.bank_account_number,
+        bank_account_name=data.bank_account_name,
+        bank_code=data.bank_code,
     )
+
+    if data.bank_account_number and data.bank_code:
+        from app.payouts.bachs_client import bachs_client
+        dest = bachs_client.create_destination(
+            account_number=data.bank_account_number,
+            bank_code=data.bank_code,
+            preferred_name=data.bank_account_name or data.name,
+        )
+        contractor.payment_provider_recipient_id = dest.get("id")
+        contractor.bank_name = dest.get("bank_name") or data.bank_name
+        contractor.bank_account_name = dest.get("account_name") or data.bank_account_name
+        contractor.payment_provider_metadata = dest
+
     db.add(contractor)
     db.commit()
     db.refresh(contractor)
 
+    is_ready = bool(contractor.payment_provider_recipient_id and contractor.monthly_stipend > 0)
     return ContractorResponse(
         id=contractor.id,
         name=contractor.name,
         email=contractor.email,
+        monthly_stipend=contractor.monthly_stipend,
+        bank_name=contractor.bank_name,
+        bank_account_number=contractor.bank_account_number,
+        bank_account_name=contractor.bank_account_name,
+        bank_code=contractor.bank_code,
+        payment_provider_recipient_id=contractor.payment_provider_recipient_id,
+        is_payout_ready=is_ready,
         site_count=0,
         overdue=0,
         critical=0,
@@ -132,11 +159,19 @@ def list_contractors_service(
         if needs_attention and (overdue_count + critical_count) == 0:
             continue
 
+        is_ready = bool(c.payment_provider_recipient_id and (c.monthly_stipend or 0) > 0)
         results.append(
             ContractorResponse(
                 id=c.id,
                 name=c.name,
                 email=c.email,
+                monthly_stipend=float(c.monthly_stipend or 0.0),
+                bank_name=c.bank_name,
+                bank_account_number=c.bank_account_number,
+                bank_account_name=c.bank_account_name,
+                bank_code=c.bank_code,
+                payment_provider_recipient_id=c.payment_provider_recipient_id,
+                is_payout_ready=is_ready,
                 site_count=site_count,
                 overdue=overdue_count,
                 critical=critical_count,
